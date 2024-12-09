@@ -16,7 +16,7 @@ curr_year <- 2024
 
 # Escday data
 escday <- read_xlsx(
-  "//dcbcpbsna01a.ENT.dfo-mpo.ca/SCD_STAD/WCVI/SOCKEYE/SOMASS/Data/ESCAPEMENT_PROGRAM/Escday.xlsx",
+  "//dcbcpbsna01a.ENT.dfo-mpo.ca//PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/Data/ESCAPEMENT_PROGRAM/Escday.xlsx",
   sheet = "Data",
   skip = 3,
   na = ""
@@ -200,7 +200,7 @@ timing_plots |>
     ~ggsave(
       plot = .x, 
       filename = paste0(
-        "//dcbcpbsna01a.ENT.dfo-mpo.ca/SCD_STAD/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+        "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
         curr_year,
         "_MGT/Escapement plots/",
         "R-PLOT_2024_Sk_cum-esc-timing_",
@@ -431,7 +431,7 @@ escday |>
 
 # Load historical escapement data from August onward
 stamp_cn <- read_xlsx(
-  "X:/WCVI/TERMINAL_AREAS/TERMRBT/Stampfalls.xlsx",
+  "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/TERMINAL_AREAS/TERMRBT/Stampfalls.xlsx",
   sheet = "STAMP Escapement Data",
   skip = 28,
   na = ""
@@ -546,7 +546,7 @@ esc_target <- 21000
 ggsave(
   plot = cn_timing_plot, 
   filename = paste0(
-    "//dcbcpbsna01a.ENT.dfo-mpo.ca/SCD_STAD/WCVI/CHINOOK/CHINOOK_MGT/",
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
     "R-PLOT_2024_CN_cum-esc-timing.png"
@@ -630,7 +630,7 @@ ggsave(
 ggsave(
   plot = cn_spaghetti_p, 
   filename = paste0(
-    "//dcbcpbsna01a.ENT.dfo-mpo.ca/SCD_STAD/WCVI/CHINOOK/CHINOOK_MGT/",
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
     "R-PLOT_2024_CN_cum-esc-historic.png"
@@ -715,7 +715,7 @@ ggsave(
 ggsave(
   plot = co_spaghetti_p, 
   filename = paste0(
-    "//dcbcpbsna01a.ENT.dfo-mpo.ca/SCD_STAD/WCVI/CHINOOK/CHINOOK_MGT/",
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
     "R-PLOT_2024_CO_cum-esc-historic.png"
