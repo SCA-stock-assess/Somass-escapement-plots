@@ -258,9 +258,45 @@ escday |>
 # Ridgeline plots ---------------------------------------------------------
 
 
+# Plot for current year
+escday |> 
+  filter(year == max(year)) |> 
+  ggplot(
+    aes(
+      y = factor(system),
+      as.Date(d.m, format = "%d-%b"), 
+      height = prop_ttl_adult, 
+      group = factor(system)
+    )
+  ) +
+  geom_density_ridges(
+    stat = "identity", 
+    #alpha = 0.75, 
+    scale = 0.95
+  ) + 
+  scale_y_discrete(
+    limits = rev,
+    expand = expansion(c(0, 0.05))
+  ) +
+  ggtitle("Sockeye escapement timing through Somass fishways") +
+  labs(y = NULL, x = NULL) +
+  scale_x_date(
+    date_labels = "%b", 
+    breaks = "1 month", 
+    limits = as.Date(c("5-Apr","20-Nov"),format = "%d-%b"),
+    expand = c(0,0)
+  ) +
+  theme_ridges() +
+  theme(
+    legend.position = c(0.98, 0.98),
+    legend.justification = c(1,1),
+    legend.box.background = element_rect(colour = "black",fill = "white")
+  )
+
+
 # Base uncoloured plot for both systems
 (rp <- escday %>% 
-   filter(year > 1982, year < max(year)) %>% 
+   filter(year > 1982, year <= max(year)) %>% 
    ggplot(
      aes(
        y = factor(year),
@@ -426,7 +462,7 @@ escday |>
 
 
 
-# Chinook escapement data -------------------------------------------------
+# Chinook & Coho escapement data -------------------------------------------
 
 
 # Load historical escapement data from August onward
@@ -646,7 +682,7 @@ ggsave(
 
 # Summarise data and feed into plot
 (co_spaghetti_p <- stamp_cn |> 
-  # Do the recent 20-year averages
+  # Compare to the last 10 years
   filter(
     between(year, max(year) - 11, max(year) -1),
     species == "CO",
