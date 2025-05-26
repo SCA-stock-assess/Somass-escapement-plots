@@ -6,6 +6,7 @@ pkgs <- c("tidyverse", "readxl", "ggridges", "geomtextpath")
 library(tidyverse); theme_set(theme_bw(base_size = 14))
 library(readxl)
 library(ggridges)
+library(ggplot2)
 library(geomtextpath)
 
 # Enter the current analysis year
@@ -79,7 +80,7 @@ escday |>
 # Cumulative current versus historical Sockeye timing graphs -------------------------------------------
 
 # Update current Somass escapement target
-som_esc <- 343750
+som_esc <- 323601 ###UNSURE FOR 2025
 
 # Forecasts for current year escapement
 esc_fcst <- data.frame(
@@ -124,11 +125,29 @@ esc_p1 <- function(data, sys) {
       alpha = 0.25
     ) +
     geom_textline(
-      label = paste0("Historic 2002 to ", curr_yr-1), 
+      data = data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = mean
+      ),
+      label = paste0("Historic 2002 to ", curr_yr - 1),
       linewidth = 1,
       hjust = 0.6,
       colour = "blue"
-    ) +
+    )
+  
+  #Old version of the geom_textline:
+    # geom_textline(
+    #   label = paste0("Historic 2002 to ", curr_yr-1), 
+    #   linewidth = 1,
+    #   hjust = 0.6,
+    #   colour = "blue"
+    # ) +
+  
+  
+  
+  
+  
     #Code below adds curves showing some of the most dramatic warm years
     # geom_textline(
     #   data = filter(escday, system == sys, year %in% c(2021, 2015)), 
@@ -140,7 +159,9 @@ esc_p1 <- function(data, sys) {
     # ) +
     geom_textline(
       data = filter(escday, system == sys, year == curr_yr), 
-      aes(y = cum_adj_adults/sys_fcst),
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"), #added to see if this would fix the issue
+        y = cum_adj_adults/sys_fcst),
       label = as.character(curr_yr),
       text_smoothing = 30,
       colour = "black",
@@ -195,6 +216,8 @@ esc_p1 <- function(data, sys) {
 
 # Save cumulative current versus historical plots to network folder -------
 
+#Need to make sure that in the current year SOCKEYE_MGMT folder, that you have an "Escapement plots" folder
+#for these plots to go into
 
 # Save to current year management folder
 timing_plots |> 
@@ -205,7 +228,7 @@ timing_plots |>
         "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
         curr_year,
         "_MGT/Escapement plots/",
-        "R-PLOT_2024_Sk_cum-esc-timing_",
+        "R-PLOT_2025_Sk_cum-esc-timing_",
         .y,
         ".png"
       ),
@@ -498,7 +521,7 @@ stamp_cn <- read_xlsx(
 
 
 # Escapement target
-esc_target <- 21000
+esc_target <- 33000 #escapement target for 2025 was 33,000
 
 
 # Summarise data and feed into plot
