@@ -80,7 +80,7 @@ escday |>
 # Cumulative current versus historical Sockeye timing graphs -------------------------------------------
 
 # Update current Somass escapement target
-som_esc <- 323601 ###UNSURE FOR 2025
+som_esc <- 343750 ###UNSURE FOR 2025
 
 # Forecasts for current year escapement
 esc_fcst <- data.frame(
@@ -124,28 +124,13 @@ esc_p1 <- function(data, sys) {
       aes(ymin = l95, ymax = u95), 
       alpha = 0.25
     ) +
-    geom_textline(
-      data = data,
-      aes(
-        x = as.Date(julian, origin = "2020-12-31"),
-        y = mean
-      ),
-      label = paste0("Historic 2002 to ", curr_yr - 1),
-      linewidth = 1,
-      hjust = 0.6,
-      colour = "blue"
-    )
-  
-  #Old version of the geom_textline:
-    # geom_textline(
-    #   label = paste0("Historic 2002 to ", curr_yr-1), 
-    #   linewidth = 1,
-    #   hjust = 0.6,
-    #   colour = "blue"
-    # ) +
-  
-  
-  
+   
+  geom_textline(
+    label = paste0("Historic 2002 to ", curr_yr-1),
+    linewidth = 1,
+    hjust = 0.6,
+    colour = "blue"
+  ) +
   
   
     #Code below adds curves showing some of the most dramatic warm years
@@ -160,7 +145,6 @@ esc_p1 <- function(data, sys) {
     geom_textline(
       data = filter(escday, system == sys, year == curr_yr), 
       aes(
-        x = as.Date(julian, origin = "2020-12-31"), #added to see if this would fix the issue
         y = cum_adj_adults/sys_fcst),
       label = as.character(curr_yr),
       text_smoothing = 30,
@@ -174,7 +158,7 @@ esc_p1 <- function(data, sys) {
       labels = scales::percent,
       name = "Proportion of total escapement",
       sec.axis = sec_axis(
-        trans = ~.*sys_fcst, 
+        transform = ~.*sys_fcst, 
         labels = scales::comma,
         name = paste(curr_yr, "cumulative escapement")
       ),
@@ -186,7 +170,7 @@ esc_p1 <- function(data, sys) {
     coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
     labs(x = NULL) +
     theme(
-      legend.position = c(0.8, 0.3),
+      legend.position.inside = c(0.8, 0.3),
       plot.tag = element_text(colour = "grey35"),
       plot.tag.position = c(0.22,0.95),
       legend.background = element_rect(colour = "black")
@@ -211,6 +195,124 @@ esc_p1 <- function(data, sys) {
   ) %>% 
   imap(~esc_p1(.x, .y))
 )
+
+#############################
+
+#Attempting to do the above, but simpler:
+
+
+#create historcial averages for Sproat Lake:
+sproat_data <- escday %>%
+  filter(
+    system == "Sproat Lake",
+    year > 2002,
+    year < max(year)
+  ) %>%
+  group_by(julian) %>%
+  summarise(
+    mean = mean(cum_prop_adult),
+    l95 = quantile(cum_prop_adult, 0.05),
+    u95 = quantile(cum_prop_adult, 0.95),
+    .groups = "drop"
+  )
+
+#Create historical averages for Great Central Lake:
+gcl_data <- escday %>%
+  filter(
+    system == "Great Central Lake",
+    year > 2002,
+    year < max(year)
+  ) %>%
+  group_by(julian) %>%
+  summarise(
+    mean = mean(cum_prop_adult),
+    l95 = quantile(cum_prop_adult, 0.05),
+    u95 = quantile(cum_prop_adult, 0.95),
+    .groups = "drop"
+  )
+
+
+# Plot for Sproat Lake
+sproat_plot <- esc_p1(sproat_data, "Sproat Lake")
+
+#without using the function esc_p1:
+sys <- "Sproat Lake"
+sys_fcst <- filter(esc_fcst, system == sys)$fcst
+curr_yr <- max(escday$year)
+
+sproat_plot <- ggplot(
+  sproat_data,
+  aes(as.Date(julian, origin = "2020-12-31"), mean)
+) +
+  geom_hline(
+    yintercept = filter(ref_pts, system == sys)$lwr / sys_fcst,
+    lty = 2,
+    linewidth = 0.8,
+    colour = "red"
+  ) +
+  geom_hline(
+    yintercept = filter(ref_pts, system == sys)$upr / sys_fcst,
+    lty = 2,
+    linewidth = 0.8,
+    colour = "gold2"
+  ) +
+  geom_ribbon(
+    aes(ymin = l95, ymax = u95),
+    alpha = 0.25
+  ) +
+  geom_textline(
+    data = sproat_data,
+    aes(x = as.Date(julian, origin = "2020-12-31"), y = mean),
+    label = paste0("Historic 2002 to ", curr_yr - 1),
+    linewidth = 1,
+    hjust = 0.6,
+    colour = "blue"
+  ) +
+  geom_textline(
+    data = filter(escday, system == sys, year == curr_yr),
+    aes(
+      x = as.Date(julian, origin = "2020-12-31"),
+      y = cum_adj_adults / sys_fcst
+    ),
+    label = as.character(curr_yr),
+    text_smoothing = 30,
+    colour = "black",
+    hjust = 0.90,
+    linewidth = 1
+  ) +
+  scale_y_continuous(
+    labels = scales::percent,
+    name = "Proportion of total escapement",
+    sec.axis = sec_axis(
+      transform = ~ . * sys_fcst,
+      labels = scales::comma,
+      name = paste(curr_yr, "cumulative escapement")
+    ),
+    expand = c(0, 0)
+  ) +
+  scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
+  guides(colour = "none") +
+  coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
+  labs(x = NULL) +
+  theme(
+    legend.position.inside = c(0.8, 0.3),
+    plot.tag = element_text(colour = "grey35"),
+    plot.tag.position = c(0.22, 0.95),
+    legend.background = element_rect(colour = "black")
+  )
+
+print(sproat_plot)
+
+
+
+# Plot for Great Central Lake
+gcl_plot <- esc_p1(gcl_data, "Great Central Lake")
+
+# Print the plots
+print(sproat_plot)
+print(gcl_plot)
+
+#############################
 
 
 
