@@ -86,7 +86,7 @@ escday |>
 
 
 # Update current Somass escapement target
-som_esc <- 343750 ###UNSURE FOR 2025: according to Nick Brown this comes from the management plan
+som_esc <- 325000 ###FOR 2025: according to the management plan (500k return leads to 325k esc target)
 
 
 
