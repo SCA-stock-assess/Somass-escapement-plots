@@ -66,6 +66,7 @@ escday <- read_xlsx(
   ungroup()
 
 
+### THIS GOES INTO SOXSUM ROWS 430-436 (APPROX):
 # Recent 3-day average and SD for both systems
 escday |> 
   filter(!is.na(cum_adj_adults)) |> 
@@ -75,6 +76,7 @@ escday |>
     mean = mean(adj_adults),
     sd = sd(adj_adults)
   )
+
 
 
 # Cumulative current versus historical Sockeye timing graphs -------------------------------------------
@@ -96,6 +98,26 @@ esc_fcst <- data.frame(
   fcst = c(som_esc*0.27, som_esc*0.73) # Sproat, then GCL 
 )
 
+#print the forecasted escapement:
+esc_fcst
+
+#print a table that shows the total number of fish to date, the forecast, and the current
+#proportion of the runsize so far based on the forecast.
+current_est <- escday %>%
+  filter(year == curr_year) %>%
+  group_by(system) %>%
+  summarise(total_cum_escapement = max(cum_adj_adults, na.rm = TRUE)) %>%
+  arrange(desc(total_cum_escapement))
+  
+current_est <-  current_est %>%
+  left_join(esc_fcst, by = "system") %>%
+  mutate(proportion_of_forecast = total_cum_escapement / fcst)
+
+current_est
+
+
+
+
 # Biological reference points
 # Note: these points were changed in 2025 (May 26 2025) by Mikayla Hamilton to reflect the
 #values in Nicholas Brown's draft CSAS working paper that was reviewed on May 26&27 2025.
@@ -104,6 +126,7 @@ ref_pts <- data.frame(
   lwr = c(26103, 50729), # Sproat, Stamp --> old values: c(12060, 29290)
   upr = c(82073, 113575) # Sproat, Stamp --> old values: c(65570, 91640)
 )
+
 
 
 
@@ -164,6 +187,7 @@ esc_p1 <- function(data, sys) {
       #vjust = -0.25, # Adjust vertical text position relative to line
       linewidth = 1
     ) +
+    
     scale_y_continuous(
       labels = scales::percent,
       name = "Proportion of total escapement",
@@ -174,10 +198,14 @@ esc_p1 <- function(data, sys) {
       ),
       expand = c(0,0)
     ) +
+    
+    
     scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
     #scale_colour_manual(values = c("salmon", "purple")) +
     guides(colour = "none") +
-    coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
+    
+    coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15")),
+                    ylim = c(-0.05, NA)) + #show 5% below the 0
     labs(x = NULL) +
     theme(
       legend.position.inside = c(0.8, 0.3),
@@ -224,6 +252,7 @@ timing_plots |>
         curr_year,
         "_MGT/Escapement plots/",
         "R-PLOT_2025_Sk_cum-esc-timing_",
+        format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
         .y,
         ".png"
       ),
