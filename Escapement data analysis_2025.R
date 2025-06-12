@@ -66,6 +66,11 @@ escday <- read_xlsx(
   ungroup()
 
 
+
+
+#Remove any row where the "system" column is blank:
+escday <- escday[!is.na(escday$system) & trimws(escday$system) != "", ]
+
 ### THIS GOES INTO SOXSUM ROWS 430-436 (APPROX):
 # Recent 3-day average and SD for both systems
 escday |> 
@@ -91,11 +96,11 @@ escday |>
 som_esc <- 325000 ###FOR 2025: according to the management plan (500k return leads to 325k esc target)
 
 
-
+##OLD CODE:
 # Forecasts for current year escapement
 esc_fcst <- data.frame(
   system = unique(escday$system),
-  fcst = c(som_esc*0.27, som_esc*0.73) # Sproat, then GCL 
+  fcst = c(som_esc*0.27, som_esc*0.73) # Sproat, then GCL #THIS COMES FROM esc_fcst (the percentage of the total escapement)
 )
 
 #print the forecasted escapement:
@@ -225,6 +230,7 @@ esc_p1 <- function(data, sys) {
           year > 2002,
           system == .x
         ) |> 
+        filter(!is.na(cum_prop_adult)) |> #remove NAs
         group_by(julian) |> 
         summarise(
           mean = mean(cum_prop_adult),
