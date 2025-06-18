@@ -2,7 +2,7 @@
 
 pkgs <- c("tidyverse", "readxl", "ggridges", "geomtextpath")
 #install.packages(pkgs)
-
+  
 library(tidyverse); theme_set(theme_bw(base_size = 14))
 library(readxl)
 library(ggridges)
@@ -100,7 +100,7 @@ som_esc <- 325000 ###FOR 2025: according to the management plan (500k return lea
 # Forecasts for current year escapement
 esc_fcst <- data.frame(
   system = unique(escday$system),
-  fcst = c(som_esc*0.27, som_esc*0.73) # Sproat, then GCL #THIS COMES FROM esc_fcst (the percentage of the total escapement)
+  fcst = c(som_esc*0.23, som_esc*0.77) # Sproat, then GCL #THIS COMES FROM esc_fcst (the percentage of the total escapement)
 )
 
 #print the forecasted escapement:
@@ -219,6 +219,9 @@ esc_p1 <- function(data, sys) {
       legend.background = element_rect(colour = "black")
     )
 }
+
+
+
 
 #### FIGURES 1 & 2 IN THE INSEASON BULLETIN FOR SOCKEYE:
 # Curves with historical average proportions
