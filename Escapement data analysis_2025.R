@@ -100,7 +100,7 @@ som_esc <- 325000 ###FOR 2025: according to the management plan (500k return lea
 # Forecasts for current year escapement
 esc_fcst <- data.frame(
   system = unique(escday$system),
-  fcst = c(som_esc*0.20, som_esc*0.8) # Sproat, then GCL #(originally: THIS COMES FROM esc_fcst (the percentage of the total escapement)), but as the season goes on use Test fishery proportions
+  fcst = c(som_esc*0.20, som_esc*0.80) # Sproat, then GCL #(originally: THIS COMES FROM esc_fcst (the percentage of the total escapement)), but as the season goes on use Test fishery proportions
 )
 
 #print the forecasted escapement:
@@ -269,6 +269,32 @@ timing_plots |>
       units = "in"
     )
   )
+
+
+
+#### How do we reach the upper reference point by the end of the forecast (how many fish to escape in the next week to stay on track?)
+#Get today's cumulative escapement
+current_esc <- escday %>%
+  filter(year == curr_year) %>%
+  group_by(system) %>%
+  summarise(total_cum_esc = max(cum_adj_adults, na.rm = TRUE))
+
+#Join with reference points and forecasts
+esc_progress <- current_esc %>%
+  left_join(ref_pts, by = "system") %>%
+  left_join(esc_fcst, by = "system") %>%
+  mutate(
+    remaining_to_target = pmax(upr - total_cum_esc, 0),  # how many more fish needed
+    days_left = 7,
+    needed_per_day = remaining_to_target / days_left
+  )
+
+#See the result
+esc_progress %>%
+  select(system, total_cum_esc, upr, remaining_to_target, needed_per_day)
+
+
+
 
 
 # Annual curves overlaid on historical ------------------------------------
