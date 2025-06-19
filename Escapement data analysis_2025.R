@@ -210,7 +210,7 @@ esc_p1 <- function(data, sys) {
     guides(colour = "none") +
     
     coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15")),
-                    ylim = c(-0.05, NA)) + #show 5% below the 0
+                    ylim = c(-0.05, 1.25)) + #show 5% below the 0, and 115% above the line ()
     labs(x = NULL) +
     theme(
       legend.position.inside = c(0.8, 0.3),
@@ -219,7 +219,6 @@ esc_p1 <- function(data, sys) {
       legend.background = element_rect(colour = "black")
     )
 }
-
 
 
 
