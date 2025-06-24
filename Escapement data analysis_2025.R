@@ -93,8 +93,9 @@ escday |>
 
 
 # Update current Somass escapement target
-som_esc <- 325000 ###FOR 2025: according to the management plan (500k return leads to 325k esc target)
+som_esc <- 331250 ###FOR a 550,000 return
 # som_esc <- 337500 ###for a 600,000 return
+# som_esc <- 325000 for a 500,000 return: according to the management plan (500k return leads to 325k esc target)
 
 ##OLD CODE:
 # Forecasts for current year escapement
