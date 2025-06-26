@@ -272,6 +272,213 @@ timing_plots |>
     )
   )
 
+#------------------------------ USING HISTORIC DATA ----------------------------
+
+# Create a dataframe of historic returns: (got this from Area23_sockeye.xlsx file)
+year <- 1988:2024
+total_return <- c(
+  755479, 368679, 325541, 1740640, 948437, 1346183, 452655, 118642,
+  481489, 492408, 616831, 494499, 289475, 697130, 1062123, 912421,
+  664629, 411700, 288391, 142145, 135921, 511547, 1501934, 1426640,
+  742393, 281201, 866624, 2046096, 1104297, 384299, 276360, 193422,
+  308908, 526950, 925083, 565254, 686831
+)
+
+Percent_GCL <- c("44%", "50%", "57%", "69%", "40%", "40%", "41%", "46%", "37%", "50%",
+                 "45%", "54%", "28%", "64%", "55%", "57%", "65%", "56%", "68%", "51%",
+                 "44%", "56%", "44%", "52%", "41%", "34%", "28%", "57%", "50%", "43%",
+                 "19%", "26%", "45%", "65%", "34%", "47%", "80%")
+Percent_GCL <- as.numeric(sub("%", "", Percent_GCL)) / 100
+
+# bind the data together
+historic <- data.frame(year, total_return, Percent_GCL)
+
+
+
+
+#HISTORIC AVERAGES FOR CATCH AND STOCK COMP:
+#What was the historic run size average?:
+#Overall:
+mean(historic$total_return) #678196 --> 650,000 run
+
+#Last 10 years:
+mean(historic$total_return[historic$year >= (curr_year-10)]) #701750 --> 700,000 run
+
+
+#What was the historic GCL split?
+#Overall:
+mean(historic$Percent_GCL) #0.48
+#Last 10 years:
+mean(historic$Percent_GCL[historic$year >= (curr_year-10)]) #0.47
+
+
+
+#HISTORIC VALUES:
+
+# Update current Somass escapement target
+som_esc <- 343750 ###FOR a 650,000 return
+som_esc <- 350000 ###FOR a 700,000 return (according to the management plan)
+
+# Update the GCL split:
+
+
+##OLD CODE:
+# Forecasts for current year escapement
+esc_fcst <- data.frame(
+  system = unique(escday$system),
+  fcst = c(som_esc*0.53, som_esc*0.47) # Sproat being 53%, and GCL being 47% 
+)
+
+#print the forecasted escapement:
+esc_fcst
+
+#print a table that shows the total number of fish to date, the forecast, and the current
+#proportion of the runsize so far based on the forecast.
+current_est <- escday %>%
+  filter(year == curr_year) %>%
+  group_by(system) %>%
+  summarise(total_cum_escapement = max(cum_adj_adults, na.rm = TRUE)) %>%
+  arrange(desc(total_cum_escapement))
+
+current_est <-  current_est %>%
+  left_join(esc_fcst, by = "system") %>%
+  mutate(proportion_of_forecast = total_cum_escapement / fcst)
+
+current_est
+
+
+
+
+# Biological reference points
+# Note: these points were changed in 2025 (May 26 2025) by Mikayla Hamilton to reflect the
+#values in Nicholas Brown's draft CSAS working paper that was reviewed on May 26&27 2025.
+ref_pts <- data.frame(
+  system = unique(escday$system),
+  lwr = c(26103, 50729), # Sproat, Stamp --> old values: c(12060, 29290)
+  upr = c(82073, 113575) # Sproat, Stamp --> old values: c(65570, 91640)
+)
+
+
+
+
+# Function to plot the curves
+esc_p1 <- function(data, sys) {
+  sys_fcst <- filter(esc_fcst, system == sys)$fcst
+  curr_yr <- max(escday$year)
+  
+  ggplot(
+    data, 
+    aes(as.Date(julian, origin = "2020-12-31"), 
+        mean)
+  ) +
+    geom_hline(
+      yintercept = filter(ref_pts, system == sys)$lwr/sys_fcst,
+      lty = 2,
+      linewidth = 0.8,
+      colour = "red"
+    ) +
+    geom_hline(
+      yintercept = filter(ref_pts, system == sys)$upr/sys_fcst,
+      lty = 2,
+      linewidth = 0.8,
+      colour = "gold2"
+    ) +
+    geom_ribbon(
+      aes(ymin = l95, ymax = u95), 
+      alpha = 0.25
+    ) +
+    
+    geom_textline(
+      label = paste0("Historic 2002 to ", curr_yr-1),
+      linewidth = 1,
+      hjust = 0.6,
+      colour = "blue"
+    ) +
+    
+    
+    #Code below adds curves showing some of the most dramatic warm years
+    # geom_textline(
+    #   data = filter(escday, system == sys, year %in% c(2021, 2015)), 
+    #   aes(y = cum_prop_adult,
+    #       colour = as.factor(year),
+    #       label = year),
+    #   hjust = 0.6,
+    #   linewidth = 1
+    # ) +
+    
+    geom_textline(
+      data = filter(escday, system == sys, year == curr_yr), 
+      aes(
+        y = cum_adj_adults/sys_fcst),
+      label = as.character(curr_yr),
+      text_smoothing = 30,
+      colour = "black",
+      hjust = 0.90,
+      #gap = FALSE,
+      #vjust = -0.25, # Adjust vertical text position relative to line
+      linewidth = 1
+    ) +
+    
+    scale_y_continuous(
+      labels = scales::percent,
+      name = "Proportion of total escapement",
+      sec.axis = sec_axis(
+        transform = ~.*sys_fcst, 
+        labels = scales::comma,
+        name = paste(curr_yr, "cumulative escapement")
+      ),
+      expand = c(0,0)
+    ) +
+    
+    
+    scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
+    #scale_colour_manual(values = c("salmon", "purple")) +
+    guides(colour = "none") +
+    
+    coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15")),
+                    ylim = c(-0.05, 1.5)) + #show 5% below the 0, and 115% above the line ()
+    labs(x = NULL) +
+    theme(
+      legend.position.inside = c(0.8, 0.3),
+      plot.tag = element_text(colour = "grey35"),
+      plot.tag.position = c(0.22,0.95),
+      legend.background = element_rect(colour = "black")
+    )
+}
+
+
+
+#### FIGURES 1 & 2 IN THE INSEASON BULLETIN FOR SOCKEYE:
+# Curves with historical average proportions
+(timing_plots <- purrr::set_names(unique(escday$system)) |> 
+    map(~ escday |> 
+          # Do the recent 20-year averages
+          filter(
+            year < max(year),
+            year > 2002,
+            system == .x
+          ) |> 
+          filter(!is.na(cum_prop_adult)) |> #remove NAs
+          group_by(julian) |> 
+          summarise(
+            mean = mean(cum_prop_adult),
+            l95 = quantile(cum_prop_adult, 0.05),
+            u95 = quantile(cum_prop_adult, 0.95))
+    ) %>% 
+    imap(~esc_p1(.x, .y))
+)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #### How do we reach the upper reference point by the end of the forecast (how many fish to escape in the next week to stay on track?)
