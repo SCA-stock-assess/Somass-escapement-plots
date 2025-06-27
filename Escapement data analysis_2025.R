@@ -93,16 +93,19 @@ escday |>
 
 
 # Update current Somass escapement target
-som_esc <- 383333 ###FOR a 900,000 return
+som_esc <- 358333 ###FOR a 750,000 return
+som_esc <- 400000 ###FOR a 1,000,000 return
+# som_esc <- 383333 ###FOR a 900,000 return
 # som_esc <- 331250 ###FOR a 550,000 return
 # som_esc <- 337500 ###for a 600,000 return
 # som_esc <- 325000 for a 500,000 return: according to the management plan (500k return leads to 325k esc target)
 
 ##OLD CODE:
 # Forecasts for current year escapement
+#Scale the data to the current proportion of SPR and GCL:
 esc_fcst <- data.frame(
   system = unique(escday$system),
-  fcst = c(som_esc*0.20, som_esc*0.80) # Sproat, then GCL #(originally: THIS COMES FROM esc_fcst (the percentage of the total escapement)), but as the season goes on use Test fishery proportions
+  fcst = c(som_esc*0.17, som_esc*0.83) # Sproat, then GCL #(originally: THIS COMES FROM esc_fcst (the percentage of the total escapement)), but as the season goes on use Test fishery proportions
 )
 
 #print the forecasted escapement:
