@@ -94,15 +94,15 @@ escday |>
 
 # Update current Somass escapement target
 som_esc <- 358333 ###FOR a 750,000 return
-som_esc <- 400000 ###FOR a 1,000,000 return
+# som_esc <- 400000 ###FOR a 1,000,000 return
 # som_esc <- 383333 ###FOR a 900,000 return
 # som_esc <- 331250 ###FOR a 550,000 return
 # som_esc <- 337500 ###for a 600,000 return
 # som_esc <- 325000 for a 500,000 return: according to the management plan (500k return leads to 325k esc target)
 
-##OLD CODE:
+
 # Forecasts for current year escapement
-#Scale the data to the current proportion of SPR and GCL:
+#split the escapement target into 2 different proportions (SPR and GCL):
 esc_fcst <- data.frame(
   system = unique(escday$system),
   fcst = c(som_esc*0.17, som_esc*0.83) # Sproat, then GCL #(originally: THIS COMES FROM esc_fcst (the percentage of the total escapement)), but as the season goes on use Test fishery proportions
@@ -112,7 +112,7 @@ esc_fcst <- data.frame(
 esc_fcst
 
 #print a table that shows the total number of fish to date, the forecast, and the current
-#proportion of the runsize so far based on the forecast.
+#proportion of the runsize so far based on the forecast.(Summarizes the cumulative escapement per system, and joins to compute as a proportion of forecast achieved)
 current_est <- escday %>%
   filter(year == curr_year) %>%
   group_by(system) %>%
@@ -254,26 +254,26 @@ esc_p1 <- function(data, sys) {
 
 #Need to make sure that in the current year SOCKEYE_MGMT folder, that you have an "Escapement plots" folder
 #for these plots to go into
-
-# Save to current year management folder
-timing_plots |> 
-  iwalk(
-    ~ggsave(
-      plot = .x, 
-      filename = paste0(
-        "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
-        curr_year,
-        "_MGT/Escapement plots/",
-        "R-PLOT_2025_Sk_cum-esc-timing_",
-        format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
-        .y,
-        ".png"
-      ),
-      height = 4.5,
-      width = 8,
-      units = "in"
-    )
-  )
+# 
+# # Save to current year management folder
+# timing_plots |> 
+#   iwalk(
+#     ~ggsave(
+#       plot = .x, 
+#       filename = paste0(
+#         "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+#         curr_year,
+#         "_MGT/Escapement plots/",
+#         "R-PLOT_2025_Sk_cum-esc-timing_",
+#         format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+#         .y,
+#         ".png"
+#       ),
+#       height = 4.5,
+#       width = 8,
+#       units = "in"
+#     )
+#   )
 
 #------------------------------ USING HISTORIC DATA ----------------------------
 
@@ -302,7 +302,7 @@ historic <- data.frame(year, total_return, Percent_GCL)
 #HISTORIC AVERAGES FOR CATCH AND STOCK COMP:
 #What was the historic run size average?:
 #Overall:
-mean(historic$total_return) #678196 --> 650,000 run
+# mean(historic$total_return) #678196 --> 650,000 run
 
 #Last 10 years:
 mean(historic$total_return[historic$year >= (curr_year-10)]) #701750 --> 700,000 run
@@ -310,7 +310,8 @@ mean(historic$total_return[historic$year >= (curr_year-10)]) #701750 --> 700,000
 
 #What was the historic GCL split?
 #Overall:
-mean(historic$Percent_GCL) #0.48
+# mean(historic$Percent_GCL) #0.48
+
 #Last 10 years:
 mean(historic$Percent_GCL[historic$year >= (curr_year-10)]) #0.47
 
@@ -319,54 +320,24 @@ mean(historic$Percent_GCL[historic$year >= (curr_year-10)]) #0.47
 #HISTORIC VALUES:
 
 # Update current Somass escapement target
-som_esc <- 343750 ###FOR a 650,000 return
-som_esc <- 350000 ###FOR a 700,000 return (according to the management plan)
+# som_esc_hist <- 343750 ###FOR a 650,000 return
+som_esc_hist <- 350000 ###FOR a 700,000 return (according to the management plan)
 
 # Update the GCL split:
-
-
-##OLD CODE:
 # Forecasts for current year escapement
-esc_fcst <- data.frame(
+esc_fcst_hist <- data.frame(
   system = unique(escday$system),
-  fcst = c(som_esc*0.53, som_esc*0.47) # Sproat being 53%, and GCL being 47% 
+  fcst = c(som_esc_hist*0.53, som_esc_hist*0.47) # Sproat being 53%, and GCL being 47% 
 )
 
 #print the forecasted escapement:
-esc_fcst
-
-#print a table that shows the total number of fish to date, the forecast, and the current
-#proportion of the runsize so far based on the forecast.
-current_est <- escday %>%
-  filter(year == curr_year) %>%
-  group_by(system) %>%
-  summarise(total_cum_escapement = max(cum_adj_adults, na.rm = TRUE)) %>%
-  arrange(desc(total_cum_escapement))
-
-current_est <-  current_est %>%
-  left_join(esc_fcst, by = "system") %>%
-  mutate(proportion_of_forecast = total_cum_escapement / fcst)
-
-current_est
-
-
-
-
-# Biological reference points
-# Note: these points were changed in 2025 (May 26 2025) by Mikayla Hamilton to reflect the
-#values in Nicholas Brown's draft CSAS working paper that was reviewed on May 26&27 2025.
-ref_pts <- data.frame(
-  system = unique(escday$system),
-  lwr = c(26103, 50729), # Sproat, Stamp --> old values: c(12060, 29290)
-  upr = c(82073, 113575) # Sproat, Stamp --> old values: c(65570, 91640)
-)
-
+esc_fcst_hist
 
 
 
 # Function to plot the curves
 esc_p1 <- function(data, sys) {
-  sys_fcst <- filter(esc_fcst, system == sys)$fcst
+  sys_fcst <- filter(esc_fcst_hist, system == sys)$fcst
   curr_yr <- max(escday$year)
   
   ggplot(
@@ -428,7 +399,7 @@ esc_p1 <- function(data, sys) {
       sec.axis = sec_axis(
         transform = ~.*sys_fcst, 
         labels = scales::comma,
-        name = paste(curr_yr, "cumulative escapement")
+        name = paste(historic, "cumulative escapement")
       ),
       expand = c(0,0)
     ) +
@@ -471,17 +442,183 @@ esc_p1 <- function(data, sys) {
     imap(~esc_p1(.x, .y))
 )
 
+# 
+# #SAVE the plots:
+# timing_plots |> 
+#   iwalk(
+#     ~ggsave(
+#       plot = .x, 
+#       filename = paste0(
+#         "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+#         curr_year,
+#         "_MGT/Escapement plots/",
+#         "R-PLOT_2025_Sk_cum-esc-timing_HISTORIC_",
+#         format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+#         .y,
+#         ".png"
+#       ),
+#       height = 4.5,
+#       width = 8,
+#       units = "in"
+#     )
+#   )
 
 
 
 
 
+################## SHOW BOTH CURRENT GCL:SPR AGAINST HISTORIC ##################
+
+historic_plot <- function(system_name){
+  sys_fcst_hist <- esc_fcst_hist %>% filter(system == system_name) %>% pull(fcst)
+  sys_fcst_curr <- esc_fcst %>% filter(system == system_name) %>% pull(fcst)
+  
+  hist_data <- escday %>%
+    filter(system == system_name , year < curr_year, year > 2002) %>%
+    filter(!is.na(cum_prop_adult)) %>%
+    group_by(julian) %>%
+    summarise(
+      mean = mean(cum_prop_adult),
+      l95 = quantile(cum_prop_adult, 0.05),
+      u95 = quantile(cum_prop_adult, 0.95),
+      .groups = "drop"
+    )
+  
+  curr_data <- escday %>% filter(system == system_name, year == curr_year)
+  
+  ggplot() +
+    # 1. Historic ribbon (scaled to current forecast) — GRAY
+    geom_ribbon(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        ymin = l95 * sys_fcst_hist / sys_fcst_curr,
+        ymax = u95 * sys_fcst_hist / sys_fcst_curr
+      ),
+      fill = "gray80", alpha = 0.4
+    ) +
+    
+    geom_hline(
+      yintercept = filter(ref_pts, system == system_name)$lwr / sys_fcst_curr,
+      linetype = "dashed",
+      linewidth = 0.8,
+      colour = "red"
+    ) +
+    
+    # Upper reference line (yellow)
+    geom_hline(
+      yintercept = filter(ref_pts, system == system_name)$upr / sys_fcst_curr,
+      linetype = "dashed",
+      linewidth = 0.8,
+      colour = "gold2"
+    ) +
+    
+    # 2. Historic line (scaled to current forecast) — GRAY dashed
+    geom_line(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = mean * sys_fcst_hist / sys_fcst_curr
+      ),
+      colour = "gray40",
+      linewidth = 1
+    ) +
+    
+    # 3. Historic ribbon (scaled to historic forecast) — BLUE
+    geom_ribbon(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        ymin = l95,
+        ymax = u95
+      ),
+      fill = "blue", alpha = 0.2
+    ) +
+    
+    # 4. Historic line (scaled to historic forecast) — BLUE
+    geom_line(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = mean
+      ),
+      colour = "blue",
+      linewidth = 1
+    ) +
+    
+    # 5. Current year (black line) - adjust to current forecast percentages
+    geom_line(
+      data = curr_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = cum_adj_adults / sys_fcst_curr
+      ),
+      colour = "black",
+      linewidth = 1.2
+    ) +
+    
+    # 6. Optional: Add label to end of black line
+    geom_text(
+      data = curr_data %>% filter(!is.na(cum_adj_adults)) %>% slice_tail(n = 1),
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = cum_adj_adults / sys_fcst_hist,
+        label = curr_year
+      ),
+      hjust = 0.9,
+      vjust = -0.5,
+      colour = "black"
+    ) +
+    
+    # Axes and labels
+    scale_y_continuous(
+      labels = scales::percent,
+      name = "Proportion of total escapement",
+      sec.axis = sec_axis(
+        trans = ~ . * sys_fcst_hist,
+        labels = scales::comma,
+        name = paste(curr_year, "cumulative escapement")
+      )
+    ) +
+    scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
+    coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
+    theme_minimal() +
+    labs(title = system_name) +
+    theme(legend.position = "none")
+}
+
+#Print the plots:
+# historic_plot(system_name="Sproat Lake") 
+# historic_plot(system_name="Great Central Lake") 
+
+#Call the plots:
+historic_plots <- set_names(unique(escday$system)) %>%
+  map(~ historic_plot(system_name = .x))
 
 
+# Save the plots in the escapement folder on the STAD drive:
+historic_plots %>%
+  iwalk(~ ggsave(
+    plot = .x,
+    filename = paste0(
+      "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+      curr_year,
+      "_MGT/Escapement plots/",
+      "R-PLOT_",
+      curr_year,
+      "_Sk_cum-esc-timing_HISTORIC_",
+      format(Sys.Date(), "%Y-%m-%d"),
+      "_",  
+      gsub(" ", "_", .y),   # replace spaces with underscores in system name
+      ".png"
+    ),
+    height = 4.5,
+    width = 8,
+    units = "in"
+  ))
 
 
-
-
+################################################################################
 
 
 #### How do we reach the upper reference point by the end of the forecast (how many fish to escape in the next week to stay on track?)
