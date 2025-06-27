@@ -304,24 +304,30 @@ historic <- data.frame(year, total_return, Percent_GCL)
 #Overall:
 # mean(historic$total_return) #678196 --> 650,000 run
 
+#Last 20 years: 
+mean(historic$total_return[historic$year >= (curr_year-20)]) #666299.8 --> 650,000 run
+
 #Last 10 years:
-mean(historic$total_return[historic$year >= (curr_year-10)]) #701750 --> 700,000 run
+# mean(historic$total_return[historic$year >= (curr_year-10)]) #701750 --> 700,000 run
 
 
 #What was the historic GCL split?
 #Overall:
 # mean(historic$Percent_GCL) #0.48
 
+#Last 20 years:
+mean(historic$Percent_GCL[historic$year >= (curr_year-20)]) #0.47
+
 #Last 10 years:
-mean(historic$Percent_GCL[historic$year >= (curr_year-10)]) #0.47
+# mean(historic$Percent_GCL[historic$year >= (curr_year-10)]) #0.47
 
 
 
 #HISTORIC VALUES:
 
 # Update current Somass escapement target
-# som_esc_hist <- 343750 ###FOR a 650,000 return
-som_esc_hist <- 350000 ###FOR a 700,000 return (according to the management plan)
+som_esc_hist <- 343750 ###FOR a 650,000 return
+# som_esc_hist <- 350000 ###FOR a 700,000 return (according to the management plan)
 
 # Update the GCL split:
 # Forecasts for current year escapement
