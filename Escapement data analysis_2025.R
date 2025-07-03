@@ -653,7 +653,7 @@ historic_plot <- function(system_name){
   curr_data <- escday %>% filter(system == system_name, year == curr_year)
   
   ggplot() +
-    # 1. Historic ribbon scaled to current forecast — GRAY
+    # 1. Historic ribbon scaled to current forecast — Blue
     geom_ribbon(
       data = hist_data,
       aes(
@@ -661,21 +661,21 @@ historic_plot <- function(system_name){
         ymin = l95_scaled,
         ymax = u95_scaled
       ),
-      fill = "gray40", alpha = 0.2
+      fill = "blue", alpha = 0.2
     ) +
     
-    # 2. Gray historic line scaled to current forecast
+    # 2. Blue historic line scaled to current forecast
     geom_line(
       data = hist_data,
       aes(
         x = as.Date(julian, origin = "2020-12-31"),
         y = mean_scaled
       ),
-      colour = "gray40",
+      colour = "blue",
       linewidth = 1
     ) +
     
-    # 3. Blue historic ribbon (raw historic forecast)
+    # 3. Gray historic ribbon (raw historic forecast)
     geom_ribbon(
       data = hist_data,
       aes(
@@ -683,21 +683,37 @@ historic_plot <- function(system_name){
         ymin = l95_hist,
         ymax = u95_hist
       ),
-      fill = "blue", alpha = 0.2
+      fill = "gray40", alpha = 0.2
     ) +
     
-    # 4. Blue historic line (raw historic forecast)
+    # 4. Gray historic line (raw historic forecast)
     geom_line(
       data = hist_data,
       aes(
         x = as.Date(julian, origin = "2020-12-31"),
         y = mean_hist
       ),
-      colour = "blue",
+      colour = "gray40",
       linewidth = 1
     ) +
     
-    # 5. Black line = current year cumulative escapement (raw)
+
+    
+    # 5. Reference lines (raw escapement thresholds)
+    geom_hline(
+      yintercept = filter(ref_pts, system == system_name)$lwr,
+      linetype = "dashed",
+      linewidth = 0.8,
+      colour = "red"
+    ) +
+    geom_hline(
+      yintercept = filter(ref_pts, system == system_name)$upr,
+      linetype = "dashed",
+      linewidth = 0.8,
+      colour = "gold2"
+    ) +
+    
+    # 6. Black line = current year cumulative escapement (raw)
     geom_line(
       data = curr_data,
       aes(
@@ -708,7 +724,7 @@ historic_plot <- function(system_name){
       linewidth = 1
     ) +
     
-    # 6. Label at end of black line
+    # 7. Label at end of black line
     geom_textline(
       data = curr_data,
       aes(
@@ -725,25 +741,11 @@ historic_plot <- function(system_name){
       size = 4
     ) +
     
-    # 7. Reference lines (raw escapement thresholds)
-    geom_hline(
-      yintercept = filter(ref_pts, system == system_name)$lwr,
-      linetype = "dashed",
-      linewidth = 0.8,
-      colour = "red"
-    ) +
-    geom_hline(
-      yintercept = filter(ref_pts, system == system_name)$upr,
-      linetype = "dashed",
-      linewidth = 0.8,
-      colour = "gold2"
-    ) +
-    
     #8. 100% proportion of curr_year forecast line:
     geom_hline(
       yintercept = sys_fcst_curr,   # or sys_fcst_hist, whichever is your 100% reference
       linetype = "dashed",
-      color = "lightgreen",
+      color = "forestgreen",
       linewidth = 0.8) +
 
     # Y-axis (raw escapement only)
