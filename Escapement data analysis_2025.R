@@ -474,6 +474,8 @@ esc_p1 <- function(data, sys) {
 
 ################## SHOW BOTH CURRENT GCL:SPR AGAINST HISTORIC ##################
 
+
+#Make a plot scaled to the proportion of fish returning (based on either historic or current year):
 historic_plot <- function(system_name){
   sys_fcst_hist <- esc_fcst_hist %>% filter(system == system_name) %>% pull(fcst)
   sys_fcst_curr <- esc_fcst %>% filter(system == system_name) %>% pull(fcst)
@@ -579,16 +581,29 @@ historic_plot <- function(system_name){
       size = 4
     ) +
     
-    # Axes and labels
+    # Axes and labels: if right y axis is to be historic:
     scale_y_continuous(
       labels = scales::percent,
       name = "Proportion of 2025 escapement", #rename with curr_year
       sec.axis = sec_axis(
-        trans = ~ . * sys_fcst_hist,
+        trans = ~ .  * sys_fcst_hist,
         labels = scales::comma,
-        name = "cumulative escapement"
+        name = "Historic cumulative escapement"
       )
     ) +
+    
+    
+    # # Axes and labels: if right y axis is to be based on current escapement
+    # scale_y_continuous(
+    #   labels = scales::percent,
+    #   name = "Proportion of 2025 escapement", #rename with curr_year
+    #   sec.axis = sec_axis(
+    #     trans = ~ .  * sys_fcst_curr,
+    #     labels = scales::comma,
+    #     name = paste(curr_year, "cumulative escapement")
+    #   )
+    # ) +
+    
     scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
     coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
     theme_minimal() +
@@ -607,6 +622,145 @@ historic_plot <- function(system_name){
 #Print the plots:
 # historic_plot(system_name="Sproat Lake") 
 # historic_plot(system_name="Great Central Lake") 
+
+
+
+
+
+
+
+
+#Plot raw escapement (actual number of fish), rather than scaled to proportion:
+historic_plot <- function(system_name){
+  sys_fcst_hist <- esc_fcst_hist %>% filter(system == system_name) %>% pull(fcst)
+  sys_fcst_curr <- esc_fcst %>% filter(system == system_name) %>% pull(fcst)
+  
+  # Historic proportions converted to raw escapement for both historic & scaled versions
+  hist_data <- escday %>%
+    filter(system == system_name , year < curr_year, year > 2002) %>%
+    filter(!is.na(cum_prop_adult)) %>%
+    group_by(julian) %>%
+    summarise(
+      mean_hist = mean(cum_prop_adult) * sys_fcst_hist,
+      l95_hist = quantile(cum_prop_adult, 0.05) * sys_fcst_hist,
+      u95_hist = quantile(cum_prop_adult, 0.95) * sys_fcst_hist,
+      mean_scaled = mean(cum_prop_adult) * sys_fcst_curr,
+      l95_scaled = quantile(cum_prop_adult, 0.05) * sys_fcst_curr,
+      u95_scaled = quantile(cum_prop_adult, 0.95) * sys_fcst_curr,
+      .groups = "drop"
+    )
+  
+  curr_data <- escday %>% filter(system == system_name, year == curr_year)
+  
+  ggplot() +
+    # 1. Historic ribbon scaled to current forecast — GRAY
+    geom_ribbon(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        ymin = l95_scaled,
+        ymax = u95_scaled
+      ),
+      fill = "gray40", alpha = 0.2
+    ) +
+    
+    # 2. Gray historic line scaled to current forecast
+    geom_line(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = mean_scaled
+      ),
+      colour = "gray40",
+      linewidth = 1
+    ) +
+    
+    # 3. Blue historic ribbon (raw historic forecast)
+    geom_ribbon(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        ymin = l95_hist,
+        ymax = u95_hist
+      ),
+      fill = "blue", alpha = 0.2
+    ) +
+    
+    # 4. Blue historic line (raw historic forecast)
+    geom_line(
+      data = hist_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = mean_hist
+      ),
+      colour = "blue",
+      linewidth = 1
+    ) +
+    
+    # 5. Black line = current year cumulative escapement (raw)
+    geom_line(
+      data = curr_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = cum_adj_adults
+      ),
+      colour = "black",
+      linewidth = 1
+    ) +
+    
+    # 6. Label at end of black line
+    geom_textline(
+      data = curr_data,
+      aes(
+        x = as.Date(julian, origin = "2020-12-31"),
+        y = cum_adj_adults
+      ),
+      label = as.character(curr_year),
+      text_smoothing = 30,
+      colour = "black",
+      linewidth = 1.2,
+      hjust = 0.90,
+      vjust = 0,
+      gap = TRUE,
+      size = 4
+    ) +
+    
+    # 7. Reference lines (raw escapement thresholds)
+    geom_hline(
+      yintercept = filter(ref_pts, system == system_name)$lwr,
+      linetype = "dashed",
+      linewidth = 0.8,
+      colour = "red"
+    ) +
+    geom_hline(
+      yintercept = filter(ref_pts, system == system_name)$upr,
+      linetype = "dashed",
+      linewidth = 0.8,
+      colour = "gold2"
+    ) +
+    
+    # Y-axis (raw escapement only)
+    scale_y_continuous(
+      labels = scales::comma,
+      name = "Cumulative Escapement (Number of Fish)"
+    ) +
+    
+    # X-axis formatting
+    scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
+    coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
+    
+    # Styling
+    theme_minimal() +
+    labs(title = system_name, x = "Date") +
+    theme(
+      legend.position = "none",
+      panel.grid = element_blank(),
+      axis.title.y.left = element_text(color = "black", size = 12, face = "bold"),
+      axis.text.y.left = element_text(color = "black"),
+      axis.title.x = element_text(size = 12, face = "bold")
+    )
+}
+
 
 #Call the plots:
 historic_plots <- set_names(unique(escday$system)) %>%
