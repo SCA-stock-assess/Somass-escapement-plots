@@ -745,7 +745,7 @@ historic_plot <- function(system_name){
     geom_hline(
       yintercept = sys_fcst_curr,   # or sys_fcst_hist, whichever is your 100% reference
       linetype = "dashed",
-      color = "forestgreen",
+      color = "blue",
       linewidth = 0.8) +
 
     # Y-axis (raw escapement only)
