@@ -428,7 +428,6 @@ esc_p1 <- function(data, sys) {
 
 
 
-#### FIGURES 1 & 2 IN THE INSEASON BULLETIN FOR SOCKEYE:
 # Curves with historical average proportions
 (timing_plots <- purrr::set_names(unique(escday$system)) |> 
     map(~ escday |> 
@@ -493,7 +492,7 @@ historic_plot <- function(system_name){
   curr_data <- escday %>% filter(system == system_name, year == curr_year)
   
   ggplot() +
-    # 1. Historic ribbon (scaled to current forecast) — GRAY
+    # 1a. Historic ribbon (scaled to current forecast) — GRAY
     geom_ribbon(
       data = hist_data,
       aes(
@@ -501,7 +500,7 @@ historic_plot <- function(system_name){
         ymin = l95 * sys_fcst_hist / sys_fcst_curr,
         ymax = u95 * sys_fcst_hist / sys_fcst_curr
       ),
-      fill = "gray80", alpha = 0.4
+      fill = "gray40", alpha = 0.2
     ) +
     
     geom_hline(
@@ -511,7 +510,7 @@ historic_plot <- function(system_name){
       colour = "red"
     ) +
     
-    # Upper reference line (yellow)
+    # 1b. Upper reference line (yellow)
     geom_hline(
       yintercept = filter(ref_pts, system == system_name)$upr / sys_fcst_curr,
       linetype = "dashed",
@@ -560,37 +559,49 @@ historic_plot <- function(system_name){
         y = cum_adj_adults / sys_fcst_curr
       ),
       colour = "black",
-      linewidth = 1.2
+      linewidth = 1
     ) +
     
-    # 6. Optional: Add label to end of black line
-    geom_text(
-      data = curr_data %>% filter(!is.na(cum_adj_adults)) %>% slice_tail(n = 1),
+    # 6. Add label to end of black line
+    geom_textline(
+      data = curr_data,
       aes(
         x = as.Date(julian, origin = "2020-12-31"),
-        y = cum_adj_adults / sys_fcst_hist,
-        label = curr_year
+        y = cum_adj_adults / sys_fcst_curr
       ),
-      hjust = 0.9,
-      vjust = -0.5,
-      colour = "black"
+      label = as.character(curr_year),  # e.g., "2025"
+      text_smoothing = 30,
+      colour = "black",
+      linewidth = 1.2,
+      hjust = 0.90,
+      vjust = 0,
+      gap = TRUE,     
+      size = 4
     ) +
     
     # Axes and labels
     scale_y_continuous(
       labels = scales::percent,
-      name = "Proportion of total escapement",
+      name = "Proportion of 2025 escapement", #rename with curr_year
       sec.axis = sec_axis(
         trans = ~ . * sys_fcst_hist,
         labels = scales::comma,
-        name = paste(curr_year, "cumulative escapement")
+        name = "cumulative escapement"
       )
     ) +
     scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
     coord_cartesian(xlim = as.Date(c("2021-05-25", "2021-10-15"))) +
     theme_minimal() +
-    labs(title = system_name) +
-    theme(legend.position = "none")
+    labs(title = system_name, x = "Date") +
+    theme(
+      legend.position = "none",
+      panel.grid = element_blank(), #remove the grid lines in the background
+      axis.title.y.left = element_text(color = "blue", size = 12, face = "bold"),
+      axis.title.y.right = element_text(color = "gray40", size = 12, face = "bold"),
+      axis.text.y.left = element_text(color = "blue"),
+      axis.text.y.right = element_text(color = "gray40"),
+      axis.title.x = element_text(size = 12, face = "bold")
+    )
 }
 
 #Print the plots:
@@ -601,7 +612,9 @@ historic_plot <- function(system_name){
 historic_plots <- set_names(unique(escday$system)) %>%
   map(~ historic_plot(system_name = .x))
 
+historic_plots
 
+#### FIGURES 1 & 2 IN THE INSEASON BULLETIN FOR SOCKEYE:
 # Save the plots in the escapement folder on the STAD drive:
 historic_plots %>%
   iwalk(~ ggsave(
