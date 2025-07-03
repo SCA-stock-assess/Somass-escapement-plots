@@ -739,6 +739,13 @@ historic_plot <- function(system_name){
       colour = "gold2"
     ) +
     
+    #8. 100% proportion of curr_year forecast line:
+    geom_hline(
+      yintercept = sys_fcst_curr,   # or sys_fcst_hist, whichever is your 100% reference
+      linetype = "dashed",
+      color = "lightgreen",
+      linewidth = 0.8) +
+
     # Y-axis (raw escapement only)
     scale_y_continuous(
       labels = scales::comma,
