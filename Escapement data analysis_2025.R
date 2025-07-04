@@ -93,7 +93,9 @@ escday |>
 
 
 # Update current Somass escapement target
-som_esc <- 358333 ###FOR a 750,000 return
+# som_esc <- 535500 #For an 850,000 return WITH management additions 
+som_esc <- 375000 #For an 850,000 return
+# som_esc <- 358333 ###FOR a 750,000 return
 # som_esc <- 400000 ###FOR a 1,000,000 return
 # som_esc <- 383333 ###FOR a 900,000 return
 # som_esc <- 331250 ###FOR a 550,000 return
