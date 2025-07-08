@@ -640,6 +640,30 @@ management_plots
 
 
 
+#### FIGURES 1 & 2 IN THE INSEASON BULLETIN FOR SOCKEYE:
+# Save the plots in the escapement folder on the STAD drive:
+management_plots %>%
+  iwalk(~ ggsave(
+    plot = .x,
+    filename = paste0(
+      "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+      curr_year,
+      "_MGT/Escapement plots/",
+      "R-PLOT_",
+      curr_year,
+      "_Sk_cum-esc-timing_MANAGEMENT_",
+      format(Sys.Date(), "%Y-%m-%d"),
+      "_",  
+      gsub(" ", "_", .y),   # replace spaces with underscores in system name
+      ".png"
+    ),
+    height = 4.5,
+    width = 8,
+    units = "in"
+  ))
+
+
+
 
 
 
@@ -926,27 +950,26 @@ historic_plots
 
 
 
-#### FIGURES 1 & 2 IN THE INSEASON BULLETIN FOR SOCKEYE:
 # Save the plots in the escapement folder on the STAD drive:
-historic_plots %>%
-  iwalk(~ ggsave(
-    plot = .x,
-    filename = paste0(
-      "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
-      curr_year,
-      "_MGT/Escapement plots/",
-      "R-PLOT_",
-      curr_year,
-      "_Sk_cum-esc-timing_HISTORIC_",
-      format(Sys.Date(), "%Y-%m-%d"),
-      "_",  
-      gsub(" ", "_", .y),   # replace spaces with underscores in system name
-      ".png"
-    ),
-    height = 4.5,
-    width = 8,
-    units = "in"
-  ))
+# historic_plots %>%
+#   iwalk(~ ggsave(
+#     plot = .x,
+#     filename = paste0(
+#       "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+#       curr_year,
+#       "_MGT/Escapement plots/",
+#       "R-PLOT_",
+#       curr_year,
+#       "_Sk_cum-esc-timing_HISTORIC_",
+#       format(Sys.Date(), "%Y-%m-%d"),
+#       "_",  
+#       gsub(" ", "_", .y),   # replace spaces with underscores in system name
+#       ".png"
+#     ),
+#     height = 4.5,
+#     width = 8,
+#     units = "in"
+#   ))
 
 
 
@@ -1104,7 +1127,7 @@ historic_plots %>%
 # historic_plot(system_name="Great Central Lake") 
 
 
-################################################################################
+############################# Exploratoy #########################################
 
 
 #### How do we reach the upper reference point by the end of the forecast (how many fish to escape in the next week to stay on track?)
