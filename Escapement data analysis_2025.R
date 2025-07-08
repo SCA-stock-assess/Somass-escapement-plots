@@ -93,7 +93,7 @@ escday |>
 
 
 # Update current Somass escapement target
-# som_esc <- 535500 #For an 850,000 return WITH management additions 
+
 som_esc <- 375000 #For an 850,000 return
 # som_esc <- 358333 ###FOR a 750,000 return
 # som_esc <- 400000 ###FOR a 1,000,000 return
@@ -522,7 +522,7 @@ management_plots <- function(system_name){
         ymin = l95_scaled,
         ymax = u95_scaled
       ),
-      fill = "forestgreen", alpha = 0.2
+      fill = "blue", alpha = 0.2
     ) +
     
     # 2. Blue historic line scaled to current forecast
@@ -532,7 +532,7 @@ management_plots <- function(system_name){
         x = as.Date(julian, origin = "2020-12-31"),
         y = mean_scaled
       ),
-      colour = "forestgreen",
+      colour = "blue",
       linewidth = 1
     ) +
     
@@ -606,7 +606,7 @@ management_plots <- function(system_name){
     geom_hline(
       yintercept = sys_fcst_curr,   # or sys_fcst_hist, whichever is your 100% reference
       linetype = "dashed",
-      color = "forestgreen",
+      color = "blue",
       linewidth = 0.8) +
     
     # Y-axis (raw escapement only)
