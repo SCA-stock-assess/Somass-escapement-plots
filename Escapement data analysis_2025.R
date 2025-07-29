@@ -1480,7 +1480,7 @@ esc_target <- 33000 #escapement target for 2025 was 33,000
     data = filter(
       stamp_cn,                   
       species == "CN", 
-      year == max(year)
+      year == max(year) #No 2025 in the data so it uses 2024 data
     ), 
     aes(y = cum_count/esc_target),
     label = as.character(curr_year),
