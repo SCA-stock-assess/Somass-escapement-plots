@@ -1438,7 +1438,7 @@ stamp_cn <- read_xlsx(
 
 
 # Escapement target
-esc_target <- 33000 #escapement target for 2025 was 33,000
+esc_target <- 358333 #escapement target for 2025 was 33,000
 
 
 # Summarise data and feed into plot
