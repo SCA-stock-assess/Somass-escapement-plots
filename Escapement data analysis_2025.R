@@ -432,25 +432,25 @@ esc_fcst_hist
 # 
 # 
 # # Curves with historical average proportions
-# (timing_plots <- purrr::set_names(unique(escday$system)) |> 
-#     map(~ escday |> 
+# (timing_plots <- purrr::set_names(unique(escday$system)) |>
+#     map(~ escday |>
 #           # Do the recent 20-year averages
 #           filter(
 #             year < max(year),
 #             year > 2002,
 #             system == .x
-#           ) |> 
+#           ) |>
 #           filter(!is.na(cum_prop_adult)) |> #remove NAs
-#           group_by(julian) |> 
+#           group_by(julian) |>
 #           summarise(
 #             mean = mean(cum_prop_adult),
 #             l95 = quantile(cum_prop_adult, 0.05),
 #             u95 = quantile(cum_prop_adult, 0.95))
-#     ) %>% 
+#     ) %>%
 #     imap(~esc_p1(.x, .y))
 # )
 # 
-# # 
+# #
 # # #SAVE the plots:
 # # timing_plots |> 
 # #   iwalk(
@@ -472,6 +472,127 @@ esc_fcst_hist
 # #   )
 
 
+
+#Cumulative escapement:
+esc_p_all_years <- function(data, sys) {
+  sys_fcst <- filter(esc_fcst_hist, system == sys)$fcst
+  
+  # #display only most recent years:
+  # data <- data %>%
+  #   filter(system == sys, year >= curr_year - 9)
+  
+  ggplot(
+    data = filter(data, system == sys),
+    aes(x = as.Date(julian, origin = "2020-12-31"),
+        y = cum_adj_adults,
+        group = year,
+        colour = as.factor(year),
+        label = year)
+  ) +
+    geom_line(linewidth = 0.8) +
+    
+    geom_text(
+      data = filter(data, system == sys) %>%
+        group_by(year) %>%
+        filter(julian == max(julian)),
+      aes(x = as.Date(julian, origin = "2020-12-31"),
+          y = cum_adj_adults,
+          label = year),
+      hjust = -0.1,
+      size = 3
+    ) +
+    
+    scale_y_continuous(
+      labels = scales::comma,
+      name = "Cumulative escapement (number of fish)"
+    ) +
+    scale_x_date(
+      breaks = "1 month",
+      date_labels = "%b"
+    ) +
+    guides(colour = "none") +
+    labs(title = paste("Escapement curves for system:", sys),
+         x = NULL) +
+    theme_minimal()
+}
+
+yearly_plots <- unique(escday$system) |>
+  set_names() |>
+  map(~ esc_p_all_years(escday, .x))
+
+
+
+#Not cumulative escapement:
+esc_weekly_plot <- function(data, sys) {
+  
+  # #display only most recent years:
+  # data <- data %>%
+  #   filter(system == sys, year >= curr_year - 9)
+  
+  weekly_data <- data %>%
+    filter(system == sys) %>%
+    mutate(
+      date = as.Date(julian, origin = "2020-12-31"),
+      week = isoweek(date)
+    ) %>%
+    group_by(year, week) %>%
+    summarise(
+      weekly_esc = sum(adj_adults, na.rm = TRUE),
+      min_date = min(date),
+      .groups = "drop"
+    )
+  
+  ggplot(weekly_data,
+         aes(x = min_date,
+             y = weekly_esc,
+             group = year,
+             colour = as.factor(year))) +
+    geom_line(linewidth = 0.8) +
+    
+    
+    geom_text(
+      data = weekly_data %>%
+        group_by(year) %>%
+        filter(min_date == max(min_date)),
+      aes(label = year),
+      hjust = -0.1,
+      size = 3,
+      show.legend = FALSE
+    ) +
+    
+    geom_smooth(
+      aes(group = 1),
+      color = "black",
+      method = "gam", #can also be loess
+      se = FALSE,
+      linewidth = 1
+    ) +
+    
+    scale_y_continuous(
+      labels = scales::comma,
+      name = "Weekly escapement (number of fish)"
+    ) +
+    
+    scale_x_date(
+      date_labels = "%b %d",
+      date_breaks = "2 weeks",
+      name = "Date"
+    ) +
+    
+    labs(
+      title = paste("Weekly Escapement by Year –", sys),
+      colour = "Year"
+    ) +
+    
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+}
+
+weekly_esc_plots <- unique(escday$system) |>
+  set_names() |>
+  map(~ esc_weekly_plot(escday, .x))
 
 ###################### MANAGEMENT ESCAPEMENT ###################################
 
