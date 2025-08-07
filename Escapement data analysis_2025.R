@@ -1559,7 +1559,7 @@ stamp_cn <- read_xlsx(
 
 
 # Escapement target
-esc_target <- 358333 #escapement target for 2025 was 33,000
+esc_target <- 32610 #escapement target for 2025 was 32,610 according to egg escapement target (pre-season forecast)
 
 
 # Summarise data and feed into plot
