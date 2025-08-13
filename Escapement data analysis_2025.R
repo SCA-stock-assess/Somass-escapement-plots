@@ -1649,7 +1649,7 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2024_CN_cum-esc-timing.png"
+    "R-PLOT_2025_CN_cum-esc-timing.png"
   ),
   height = 4.5,
   width = 8,
