@@ -1649,201 +1649,101 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2025_CN_cum-esc-timing.png"
+    "R-PLOT_2025_CN_cum-esc-timing",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
   ),
   height = 4.5,
   width = 8,
   units = "in"
 )
 
-
-
-# Chinook data versus previous 15 years
-(cn_spaghetti_p <- stamp_cn |> 
-    # Do the recent 10-year averages
-    filter(
-      between(year, max(year) - 11, max(year) -1),
-      species == "CN",
-      julian < 310
-    ) |> 
-    group_by(year) |> 
-    mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
-    ggplot(
-      aes(
-        as.Date(julian, origin = paste0(curr_year -1, "-12-31")), 
-        cum_count
-      )
-    ) +
-    # Historical data as thin grey lines
-    geom_textline(
-      aes(label = year, group = year, hjust = hjust),
-      colour = "grey50",
-      alpha = 0.7
-    ) +
-    # Current year as thick red line with semi-transparent label
-    geom_labelline(
-      data = filter(
-        stamp_cn, 
-        species == "CN", 
-        year == max(year)
-      ), 
-      aes(y = cum_count),
-      label = as.character(curr_year),
-      colour = "red",
-      hjust = 0.85,
-      linewidth = 1.25,
-      boxcolour = "white",
-      alpha = 0.75,
-      label.padding = unit(0.1, "lines"),
-      gap = TRUE
-    ) +
-    scale_x_date(
-      breaks = "2 weeks", 
-      date_labels = "%d %b", 
-      limits = as.Date(
-        c(
-          paste0(curr_year, "-08-01"), 
-          paste0(curr_year, "-11-05")
-        )
-      ),
-      expand = expansion(mult = 0)
-    ) +
-    scale_y_continuous(
-      position = "right", # Put y axis on right to show count values at the end of the time series
-      expand = expansion(mult = c(0, 0.05))
-    ) + 
-    guides(colour = "none") +
-    labs(
-      x = NULL, 
-      y = "Cumulative Stamp Falls Chinook escapement"
-    ) +
-    theme(
-      axis.title.y.right = element_text( # Increase y-axis title margin
-        margin = margin(l = 0.5, unit = "lines")
-      )
-    ) 
-)
-
-
-
-# Save to the network folder
-ggsave(
-  plot = cn_spaghetti_p, 
-  filename = paste0(
-    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
-    curr_year,
-    "/A23/Escapement plot/",
-    "R-PLOT_2024_CN_cum-esc-historic.png"
-  ),
-  height = 4.5,
-  width = 8,
-  units = "in"
-)
+# 
+# 
+# # Chinook data versus previous 15 years
+# (cn_spaghetti_p <- stamp_cn |> 
+#     # Do the recent 10-year averages
+#     filter(
+#       between(year, max(year) - 11, max(year) -1),
+#       species == "CN",
+#       julian < 310
+#     ) |> 
+#     group_by(year) |> 
+#     mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
+#     ggplot(
+#       aes(
+#         as.Date(julian, origin = paste0(curr_year -1, "-12-31")), 
+#         cum_count
+#       )
+#     ) +
+#     # Historical data as thin grey lines
+#     geom_textline(
+#       aes(label = year, group = year, hjust = hjust),
+#       colour = "grey50",
+#       alpha = 0.7
+#     ) +
+#     # Current year as thick red line with semi-transparent label
+#     geom_labelline(
+#       data = filter(
+#         stamp_cn, 
+#         species == "CN", 
+#         year == max(year)
+#       ), 
+#       aes(y = cum_count),
+#       label = as.character(curr_year),
+#       colour = "red",
+#       hjust = 0.85,
+#       linewidth = 1.25,
+#       boxcolour = "white",
+#       alpha = 0.75,
+#       label.padding = unit(0.1, "lines"),
+#       gap = TRUE
+#     ) +
+#     scale_x_date(
+#       breaks = "2 weeks", 
+#       date_labels = "%d %b", 
+#       limits = as.Date(
+#         c(
+#           paste0(curr_year, "-08-01"), 
+#           paste0(curr_year, "-11-05")
+#         )
+#       ),
+#       expand = expansion(mult = 0)
+#     ) +
+#     scale_y_continuous(
+#       position = "right", # Put y axis on right to show count values at the end of the time series
+#       expand = expansion(mult = c(0, 0.05))
+#     ) + 
+#     guides(colour = "none") +
+#     labs(
+#       x = NULL, 
+#       y = "Cumulative Stamp Falls Chinook escapement"
+#     ) +
+#     theme(
+#       axis.title.y.right = element_text( # Increase y-axis title margin
+#         margin = margin(l = 0.5, unit = "lines")
+#       )
+#     ) 
+# )
+# 
+# 
+# 
+# # Save to the network folder
+# ggsave(
+#   plot = cn_spaghetti_p, 
+#   filename = paste0(
+#     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+#     curr_year,
+#     "/A23/Escapement plot/",
+#     "R-PLOT_2024_CN_cum-esc-historic.png"
+#   ),
+#   height = 4.5,
+#   width = 8,
+#   units = "in"
+# )
 
 
 # Coho curves -------------------------------------------------------------
-
-
-# Summarise data and feed into plot
-(cn_timing_plot <- stamp_cn |> 
-   # Do the recent 20-year averages
-   filter(between(year, max(year) - 21, max(year) -1),
-          species == "CO") |> 
-   group_by(julian) |> 
-   summarise(
-     mean = mean(cum_prop),
-     l95 = quantile(cum_prop, 0.05),
-     u95 = quantile(cum_prop, 0.95)
-   ) |> 
-   # Calculate smoothing curves for upper and lower 90th percentiles
-   mutate(
-     l95_smooth = stats::predict(glm(l95 ~ julian, family = binomial)),
-     u95_smooth = stats::predict(glm(u95 ~ julian, family = binomial)),
-     across(contains("smooth"), ~binomial()$linkinv(.x))
-   ) |> 
-   ggplot(
-     aes(
-       as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-       mean
-     )
-   ) +
-   geom_ribbon(
-     aes(ymin = l95_smooth, ymax = u95_smooth), 
-     alpha = 0.25
-   ) +
-   geom_textsmooth(
-     label = paste("Historic ", max(stamp_cn$year) - 21, "to", max(stamp_cn$year) -1), 
-     linewidth = 1,
-     hjust = 0.6,
-     colour = "blue",
-     method = "glm",
-     method.args = list(family = binomial())
-   ) +
-   geom_textline(
-     data = filter(
-       stamp_cn,                   
-       species == "CN", 
-       year == max(year) #No 2025 in the data so it uses 2024 data
-     ), 
-     aes(y = cum_count/esc_target),
-     label = as.character(curr_year),
-     colour = "red",
-     hjust = 0.8,
-     #vjust = -0.2,
-     #gap = FALSE,
-     linewidth = 1,
-     text_smoothing = 60
-   ) +
-   scale_y_continuous(
-     labels = scales::percent,
-     name = "Proportion of total escapement",
-     sec.axis = sec_axis(
-       trans = ~.*esc_target, 
-       labels = scales::comma,
-       name = paste(curr_year, "cumulative escapement")
-     ),
-     expand = c(0,0)
-   ) +
-   scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
-   guides(colour = "none") +
-   coord_cartesian(
-     xlim = as.Date(
-       c(
-         paste0(curr_year, "-08-01"), 
-         paste0(curr_year, "-11-15")
-       )
-     )
-   ) +
-   labs(x = NULL) +
-   theme(
-     legend.position = c(0.8, 0.3),
-     plot.tag.position = c(0.22,0.95),
-     legend.background = element_rect(colour = "black")
-   )
-)
-
-
-
-# Save latest plot version to network folder
-ggsave(
-  plot = cn_timing_plot, 
-  filename = paste0(
-    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
-    curr_year,
-    "/A23/Escapement plot/",
-    "R-PLOT_2025_CO_cum-esc-timing.png"
-  ),
-  height = 4.5,
-  width = 8,
-  units = "in"
-)
-
-
-
-
-
-
-
 
 
 # Summarise data and feed into plot
@@ -1920,9 +1820,133 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2024_CO_cum-esc-historic.png"
+    "R-PLOT_2025_CO_cum-esc-timing",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
   ),
   height = 4.5,
   width = 8,
   units = "in"
 )
+
+
+
+# # Escapement target
+# esc_target <- NA #escapement target does not exist for Coho (so cannot make the same plot as what was done for Chinook)
+# 
+# # Summarise data and feed into plot
+# (cn_timing_plot <- stamp_cn |> 
+#     # Do the recent 20-year averages
+#     filter(between(year, max(year) - 21, max(year) -1),
+#            species == "CO") |> 
+#     group_by(julian) |> 
+#     summarise(
+#       mean = mean(cum_prop),
+#       l95 = quantile(cum_prop, 0.05),
+#       u95 = quantile(cum_prop, 0.95)
+#     ) |> 
+#     # Calculate smoothing curves for upper and lower 90th percentiles
+#     mutate(
+#       l95_smooth = stats::predict(glm(l95 ~ julian, family = binomial)),
+#       u95_smooth = stats::predict(glm(u95 ~ julian, family = binomial)),
+#       across(contains("smooth"), ~binomial()$linkinv(.x))
+#     ) |> 
+#     ggplot(
+#       aes(
+#         as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+#         mean
+#       )
+#     ) +
+#     geom_ribbon(
+#       aes(ymin = l95_smooth, ymax = u95_smooth), 
+#       alpha = 0.25
+#     ) +
+#     geom_textsmooth(
+#       label = paste("Historic ", max(stamp_cn$year) - 21, "to", max(stamp_cn$year) -1), 
+#       linewidth = 1,
+#       hjust = 0.6,
+#       colour = "blue",
+#       method = "glm",
+#       method.args = list(family = binomial())
+#     ) +
+#     geom_textline(
+#       data = filter(
+#         stamp_cn,                   
+#         species == "CO", 
+#         year == max(year) #No 2025 in the data so it uses 2024 data
+#       ), 
+#       aes(y = cum_count/esc_target),
+#       label = as.character(curr_year),
+#       colour = "red",
+#       hjust = 0.8,
+#       #vjust = -0.2,
+#       #gap = FALSE,
+#       linewidth = 1,
+#       text_smoothing = 60
+#     ) +
+#     scale_y_continuous(
+#       labels = scales::percent,
+#       name = "Proportion of total escapement",
+#       sec.axis = sec_axis(
+#         trans = ~.*esc_target, 
+#         labels = scales::comma,
+#         name = paste(curr_year, "cumulative escapement")
+#       ),
+#       expand = c(0,0)
+#     ) +
+#     scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
+#     guides(colour = "none") +
+#     coord_cartesian(
+#       xlim = as.Date(
+#         c(
+#           paste0(curr_year, "-08-01"), 
+#           paste0(curr_year, "-11-15")
+#         )
+#       )
+#     ) +
+#     labs(x = NULL) +
+#     theme(
+#       legend.position = c(0.8, 0.3),
+#       plot.tag.position = c(0.22,0.95),
+#       legend.background = element_rect(colour = "black")
+#     )
+# )
+# 
+# 
+# 
+# # Save latest plot version to network folder
+# ggsave(
+#   plot = cn_timing_plot, 
+#   filename = paste0(
+#     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+#     curr_year,
+#     "/A23/Escapement plot/",
+#     "R-PLOT_2025_CO_cum-esc-timing",
+#     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+#     ".png"
+#   ),
+#   height = 4.5,
+#   width = 8,
+#   units = "in"
+# )
+# 
+# # #SAVE the plots:
+# # # timing_plots |> 
+# # #   iwalk(
+# # #     ~ggsave(
+# # #       plot = .x, 
+# # #       filename = paste0(
+# # #         "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/",
+# # #         curr_year,
+# # #         "_MGT/Escapement plots/",
+# # #         "R-PLOT_2025_Sk_cum-esc-timing_HISTORIC_",
+# # #         format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+# # #         .y,
+# # #         ".png"
+# # #       ),
+# # #       height = 4.5,
+# # #       width = 8,
+# # #       units = "in"
+# # #     )
+# # #   )
+
