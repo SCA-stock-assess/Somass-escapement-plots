@@ -30,15 +30,19 @@ escday <- read_xlsx(
     year = if_else(year < 2000,
                    as.numeric(paste0(19, year)),
                    year),
+    # Build a proper Date column from year, month, day
     date = as.Date(paste(year, month, day, sep = "-")),
     julian = date |> format("%j") |> as.numeric(),
+    # Reconcile and fill missing adult counts
     adj_adults = case_when(
       year == max(year) & is.na(`Adjusted net Adult up count`) ~ NA_real_, # Preserve NAs for days not yet observed in current year
+      # If our primary column is NA but Stamp Falls data exists, use it
       is.na(adj_adults) & !is.na(`Stamp Falls Adjusted Adults`) ~ `Stamp Falls Adjusted Adults`,
       is.na(adj_adults) & year < max(year) ~ 0,
       TRUE ~ adj_adults),
     adj_jacks = case_when(
       is.na(adj_jacks) ~ `Adjusted net Jack up count`,
+      # For past years, assume missing equals zero
       is.na(adj_jacks) & year < max(year) ~ 0,
       TRUE ~ adj_jacks)
   ) |> 
@@ -46,16 +50,21 @@ escday <- read_xlsx(
   group_by(system, year) |> 
   arrange(julian) |> 
   mutate(
+    # Total annual counts for adults and jacks
     across(adj_adults:adj_jacks, ~sum(.x, na.rm = TRUE), .names = "ttl_{.col}"),
     #across(adj_adults:adj_jacks, ~if_else(is.na(.x) & year < max(year), 0, .x)),
+    # Running cumulative sum by day
     across(adj_adults:adj_jacks, ~cumsum(.x), .names = "cum_{.col}"),
+    # Proportion of the daily count to the annual total
     prop_ttl_adult = adj_adults / ttl_adj_adults,
     prop_ttl_jack = adj_jacks / ttl_adj_jacks,
+    # Cumulative proportion to date
     cum_prop_adult = cum_adj_adults / ttl_adj_adults,
     cum_prop_jack = cum_adj_jacks / ttl_adj_jacks,
     system = if_else(system == "GCL",
                      "Great Central Lake",
                      "Sproat Lake"),
+    # Categorize key escapement percentiles for adults
     stop.seq = case_when(
       between(cum_prop_adult,0.01,0.5) ~ ">1% date",
       between(cum_prop_adult,0.5,0.99) >= 0.5 ~ ">50% date",
