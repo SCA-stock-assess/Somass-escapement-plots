@@ -509,8 +509,9 @@ actual_total_data <- stamp_cn %>%
   ungroup()
 
 
-#Plot the data:
-ggplot() +
+#E) Plot the data: (Cumulative):
+cumulative_plot<- 
+  ggplot() +
 
     #HISTORIC RIBBONS & LINES:
     geom_ribbon(data = historic_summary_cumulative,
@@ -576,7 +577,7 @@ ggplot() +
     scale_x_date(date_labels = "%b-%d", date_breaks = "1 week",
                  limits = as.Date(c("2000-08-01", "2000-10-20"))) +
   
-    scale_y_continuous(limits = c(0, 20000)) +
+    scale_y_continuous(limits = c(0, 15000)) +
 
     labs(
       title = "Historic and Current Marked (Blue) vs Unmarked (Green) Coho",
@@ -591,10 +592,29 @@ ggplot() +
     )
   
   
+#Print the plot:
+cumulative_plot
 
 
 
-#NOT-CUMULATIVE:
+#Save the plot:
+ggsave(
+  plot = cumulative_plot,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-PLOT_2025_CO_cumulative_marked_vs_unmarked_plot",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
+
+
+#F) Plot the data (NOT-CUMULATIVE):
 
 #A) Convert cumulative to daily estimates:
 proj_daily <- proj_long %>%
@@ -749,21 +769,21 @@ ggplot() +
 )
 
 
-# Save to the network folder
-ggsave(
-  plot = co_spaghetti_p, 
-  filename = paste0(
-    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
-    curr_year,
-    "/A23/Escapement plot/",
-    "R-PLOT_2025_CO_cum-esc-timing",
-    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
-    ".png"
-  ),
-  height = 4.5,
-  width = 8,
-  units = "in"
-)
-
+# # Save to the network folder
+# ggsave(
+#   plot = co_spaghetti_p, 
+#   filename = paste0(
+#     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+#     curr_year,
+#     "/A23/Escapement plot/",
+#     "R-PLOT_2025_CO_cum-esc-timing",
+#     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+#     ".png"
+#   ),
+#   height = 4.5,
+#   width = 8,
+#   units = "in"
+# )
+# 
 
 
