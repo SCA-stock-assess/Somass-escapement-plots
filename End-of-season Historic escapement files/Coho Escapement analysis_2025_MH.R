@@ -384,6 +384,7 @@ current_data <- read_xlsx(
     Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
   )
 
+
 ########################## Apply Proportion of unmarked to current year Coho ################################
 #to project the amount of wild coho returning to date, we apply the proportion by month to the current year's return:
 
@@ -437,7 +438,7 @@ historic_summary_mark_unmark <- historic_data_2015_2024 %>%
   ) %>%
   mutate(
     se_marked = sd_marked / sqrt(n_marked),
-    lower_marked = mean_marked - qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,  # Prevent df < 1
+    lower_marked = mean_marked - qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,  # Prevent degrees of freedom of more than 1
     upper_marked = mean_marked + qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,
     se_unmarked = sd_unmarked / sqrt(n_unmarked),
     lower_unmarked = mean_unmarked - qt(0.975, df = pmax(n_unmarked - 1, 1)) * se_unmarked,
@@ -664,91 +665,6 @@ ggsave(
 )
 
 
-#F) Plot the data (NOT-CUMULATIVE):
-
-#A) Convert cumulative to daily estimates:
-proj_daily <- proj_long %>%
-  arrange(Type, MonthDay) %>%
-  group_by(Type) %>%
-  mutate(
-    Daily_Count = Estimated_Count - lag(Estimated_Count, default = 0)
-  ) %>%
-  ungroup()
-
-
-ggplot() +
-
-  #HISTORIC RIBBONS & LINES:
-  geom_ribbon(data = historic_summary_mark_unmark,
-              aes(x = MonthDay, ymin = lower_marked, ymax = upper_marked),
-              fill = "blue", alpha = 0.2) +
-  geom_line(data = historic_summary_mark_unmark,
-            aes(x = MonthDay, y = mean_marked),
-            color = "blue", size = 1) +
-
-  geom_ribbon(data = historic_summary_mark_unmark,
-              aes(x = MonthDay, ymin = lower_unmarked, ymax = upper_unmarked),
-              fill = "darkgreen", alpha = 0.2) +
-  geom_line(data = historic_summary_mark_unmark,
-            aes(x = MonthDay, y = mean_unmarked),
-            color = "darkgreen", size = 1) +
-
-
-  #PREVIOUS YEAR'S LINES:
-  # #If you want them smoothed:
-  # geom_smooth(data = co_years_long,
-  #             aes(x = MonthDay, y = Count, color = factor(year), linetype = MarkStatus, group = interaction(year, MarkStatus)),
-  #             method = "loess", se = FALSE, size = 1) +
-
-  #If you want the raw data (unsmoothed):
-  # geom_line(data = co_years_long,
-  #           aes(x = MonthDay, y = Count, color = factor(year), linetype = MarkStatus, group = interaction(year, MarkStatus)),
-  #           size = 1) +
-
-
-  #CURRENT YEAR'S LINES:
-  geom_line(data = proj_daily %>% filter(Type == "est_marked"),
-            aes(x = MonthDay, y = Daily_Count, linetype = "Marked (Projected)"),
-            color = "black", size = 1) +
-  
-  geom_line(data = proj_daily %>% filter(Type == "est_unmarked"),
-            aes(x = MonthDay, y = Daily_Count, linetype = "Unmarked (Projected)"),
-            color = "black", size = 1) +
-  # 
-  # #LEGENDS & SCALES:
-  # scale_color_manual(
-  #   name = "Year",
-  #   values = c("2022" = "yellow", "2023" = "orange", "2024" = "red")
-  # ) +
-
-  scale_linetype_manual(
-    name = "Mark Status",
-    values = c(
-      "Marked" = "solid",
-      "Unmarked" = "dashed",
-      "Marked (Projected)" = "solid",
-      "Unmarked (Projected)" = "dashed"
-    )
-  ) +
-
-  #LIMIT THE X AXIS:
-  scale_x_date(date_labels = "%b-%d", date_breaks = "1 week",
-               limits = as.Date(c("2000-08-01", "2000-10-01"))) +
-
-  labs(
-    title = "Historic and Current Marked (Blue/Red) vs Unmarked (Green/Dashed) Coho",
-    x = "Month-Day",
-    y = "Coho Count"
-  ) +
-
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
-  )
-
-
-
 ########################## Coho Spaghetti Plot ################################
 #Read in the Quartile data:
 
@@ -966,21 +882,21 @@ legend_quartiles <- tibble(
 
 
 
-# # Save to the network folder
-# ggsave(
-#   plot = co_spaghetti_p_quart, 
-#   filename = paste0(
-#     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
-#     curr_year,
-#     "/A23/Escapement plot/",
-#     "R-PLOT_2025_CO_cum-esc-timing",
-#     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
-#     ".png"
-#   ),
-#   height = 4.5,
-#   width = 8,
-#   units = "in"
-# )
-# 
+# Save to the network folder
+ggsave(
+  plot = co_spaghetti_p_quart,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-PLOT_2025_CO_cum-esc-timing_quartiles",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
+
 
 
