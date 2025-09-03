@@ -71,7 +71,7 @@ escday <- read_xlsx(
 #Remove any row where the "system" column is blank:
 escday <- escday[!is.na(escday$system) & trimws(escday$system) != "", ]
 
-### THIS GOES INTO SOXSUM ROWS 430-436 (APPROX):
+### THIS GOES INTO SOXSUM ROWS 460-470 (APPROX):
 # Recent 3-day average and SD for both systems
 escday |> 
   filter(!is.na(cum_adj_adults)) |> 
@@ -92,7 +92,7 @@ escday |>
 
 
 
-# Update current Somass escapement target
+# Update current Somass escapement target, ask FM what targets would be without management consideration
 
 # som_esc <- 366667 #For an 800,000 return
 # som_esc <- 375000 #For an 850,000 return
@@ -329,7 +329,7 @@ mean(historic$Percent_GCL[historic$year >= (curr_year-20)]) #0.47
 #HISTORIC VALUES:
 
 # Update current Somass escapement target
-som_esc_hist <- 343750 ###FOR a 650,000 return
+som_esc_hist <- 343750 ###FOR a 650,000 return (comes from FM)
 # som_esc_hist <- 350000 ###FOR a 700,000 return (according to the management plan)
 
 # Update the GCL split:
@@ -1810,6 +1810,80 @@ ggsave(
       margin = margin(l = 0.5, unit = "lines")
     )
   ) 
+)
+#### Exact same plot with Y axis adjusted to prevent cutting off- Delete above plots once everyone happy with this one_VP?
+# Define filtered_data outside the pipeline
+filtered_data <- stamp_cn |> 
+  filter(
+    between(year, max(year) - 11, max(year) - 1),
+    species == "CO",
+    julian < 310
+  )
+
+# Plot using filtered_data
+(co_spaghetti_p <- filtered_data |> 
+    group_by(year) |> 
+    mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
+    ggplot(
+      aes(
+        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+        cum_count
+      )
+    ) +
+    # Historical data as thin grey lines
+    geom_textline(
+      aes(label = year, group = year, hjust = hjust),
+      colour = "grey50",
+      alpha = 0.7
+    ) +
+    # 2023 as thick red line with semi-transparent label
+    geom_labelline(
+      data = filter(
+        stamp_cn, 
+        species == "CO", 
+        year == max(year)
+      ), 
+      aes(y = cum_count),
+      label = curr_year,
+      colour = "red",
+      hjust = 0.9,
+      vjust = 0.1,
+      linewidth = 1.25,
+      boxcolour = "white",
+      alpha = 0.75,
+      label.padding = unit(0.1, "lines"),
+      gap = TRUE,
+      text_smoothing = 60
+    ) +
+    scale_x_date(
+      breaks = "2 weeks", date_labels = "%d %b"
+    ) +
+    
+    # 🔧 EDITED: Use max from filtered data for tighter y-axis
+    scale_y_continuous(
+      position = "right",
+      limits = c(0, max(filtered_data$cum_count, na.rm = TRUE) * 1.05)  # Add 5% buffer
+    ) +
+    
+    guides(colour = "none") +
+    coord_cartesian(
+      xlim = as.Date(
+        c(
+          paste0(curr_year, "-08-01"), 
+          paste0(curr_year, "-11-05")
+        )
+      ),
+      expand = FALSE
+    ) +
+    labs(
+      x = NULL, 
+      y = "Cumulative Stamp Falls Coho escapement"
+    ) +
+    theme(
+      axis.title.y.right = element_text( # Increase y-axis title margin
+        margin = margin(l = 0.5, unit = "lines")
+      )
+    ) 
 )
 
 
