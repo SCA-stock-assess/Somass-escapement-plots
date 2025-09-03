@@ -360,6 +360,30 @@ stamp_cn <- read_xlsx(
   ungroup()
 
 
+
+#Load current Escapement data for marked vs unmarked:
+current_data <- read_xlsx(
+  "Daily Totals by Age 2025.xlsx",
+  sheet = "Stamp CN&CO",
+  na = ""
+) %>%
+  #Only select the columns we are interested in:
+  select(Date, "Co  Mark", "Co  NoMark") %>%
+  mutate(
+    year = curr_year,
+    # normalize to fixed year:
+    MonthDay = as.Date(format(Date, "2000-%m-%d")),  
+    Co_Mark = `Co  Mark`,
+    Co_NoMark = `Co  NoMark`
+  ) %>%
+  # ensure dates are in order for cumulative sums
+  arrange(Date) %>%
+  #we want this data as a cumulative sum:
+  mutate(
+    Co_Mark_Cumulative = cumsum(replace_na(Co_Mark, 0)),
+    Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
+  )
+
 ########################## Apply Proportion of unmarked to current year Coho ################################
 #to project the amount of wild coho returning to date, we apply the proportion by month to the current year's return:
 
@@ -562,22 +586,27 @@ geom_ribbon(data = historic_summary_cumulative,
     #           size = 1) +
 
 
-    #CURRENT YEAR'S LINES:
-    geom_line(data = proj_long %>% filter(Type == "est_marked"),
-              aes(x = MonthDay, y = Estimated_Count, linetype = "Marked (Projected)"),
-              color = "black", size = 1) +
+    # #CURRENT YEAR'S LINES: (Using historic proportions - if we don't have current proportions)
+    # geom_line(data = proj_long %>% filter(Type == "est_marked"),
+    #           aes(x = MonthDay, y = Estimated_Count, linetype = "Marked (Projected)"),
+    #           color = "black", size = 1) +
+    # 
+    # geom_line(data = proj_long %>% filter(Type == "est_unmarked"),
+    #           aes(x = MonthDay, y = Estimated_Count, linetype = "Unmarked (Projected)"),
+    #           color = "black", size = 1) +
+  
+  #CURRENT YEAR'S LINES: (Using ACTUAL proportions - if we DO have current proportions)
+  geom_line(data = current_data,
+            aes(x = MonthDay, y = Co_Mark_Cumulative, linetype = "Marked"),
+            color = "black", size = 1) +
+  
+  geom_line(data = current_data,
+            aes(x = MonthDay, y = Co_NoMark_Cumulative, linetype = "Unmarked"),
+            color = "black", size = 1) +
+  
+  
 
-    geom_line(data = proj_long %>% filter(Type == "est_unmarked"),
-              aes(x = MonthDay, y = Estimated_Count, linetype = "Unmarked (Projected)"),
-              color = "black", size = 1) +
-  
-  # ACTUAL TOTAL LINE (red)
-  geom_line(data = actual_total_data,
-            aes(x = PlotDate, y = Cumulative_Count, linetype = "Actual Total"),
-            color = "red", size = 1)  +
-  
   # LEGENDS & SCALES:
-  
   #IF USING OTHER YEARS ON THIS PLOT:
     # scale_color_manual(
     #   name = "Year",
@@ -590,8 +619,7 @@ geom_ribbon(data = historic_summary_cumulative,
         "Marked" = "solid",
         "Unmarked" = "dashed",
         "Marked (Projected)" = "solid",
-        "Unmarked (Projected)" = "dashed",
-        "Actual Total" = "solid"
+        "Unmarked (Projected)" = "dashed"
       )
     ) +
 
@@ -722,8 +750,16 @@ ggplot() +
 
 
 ########################## Coho Spaghetti Plot ################################
+#Read in the Quartile data:
+
+RCH_Quartiles <- read_xlsx(
+  "RbtObsQuart.xlsx",
+  sheet = "Sheet1",
+  na = ""
+) 
 
 
+#NOT COLOURED ACCORDING TO QUARTILES:
 # Summarise data and feed into plot
 (co_spaghetti_p <- stamp_cn |> 
   # Compare to the last 10 years
@@ -791,9 +827,148 @@ ggplot() +
 )
 
 
+
+
+
+#COLOURED ACCORDING TO QUARTILES:
+
+#A) Rename the columns:
+RCH_Quartiles <- RCH_Quartiles %>%
+  rename(year = `Return Year`)
+
+#B) Merge the quartiles with plotting data:
+stamp_cn_with_quartiles <- stamp_cn %>%
+  left_join(RCH_Quartiles, by = "year")
+
+stamp_cn_with_quartiles |> 
+  filter(!is.na(ObsQuart))
+
+#C) Set the quartiles to specific colours:
+# quartile_colors <- c(
+#   "1" = "#1b9e77",  
+#   "2" = "#7570b3",
+#   "3" = "#e7298a",  
+#   "4" = "#d95f02" 
+# )
+
+quartile_colors <- c(
+  "4" = "#6DA544",  
+  "3" = "darkgreen",
+  "2" = "#D55E00",  
+  "1" = "#8B0000" 
+)
+
+legend_quartiles <- tibble(
+  ObsQuart = factor(1:4),
+  x = as.Date("2000-08-01"),
+  y = 0
+)
+
+# Summarise data and feed into plot
+(co_spaghetti_p_quart <- stamp_cn_with_quartiles |> 
+    filter(
+      between(year, max(year) - 11, max(year) -1),
+      species == "CO",
+      julian < 310
+    ) |> 
+    group_by(year) |> 
+    mutate(hjust = runif(1, 0.8, 1)) |> 
+    ggplot(
+      aes(
+        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+        cum_count
+      )
+    ) +
+    
+    geom_point(
+      data = legend_quartiles,
+      aes(x = x, y = y, colour = ObsQuart),
+      shape = 16, size = 4
+    )+ 
+    
+    # Historical data as colored lines by quartile:
+    geom_textline(
+      aes(label = year, group = year, hjust = hjust, colour = factor(ObsQuart)),
+      alpha = 0.9,
+      show.legend = FALSE
+    ) +
+    
+    # Highlight current year as red (unchanged)
+    geom_labelline(
+      data = filter(
+        stamp_cn_with_quartiles, 
+        species == "CO", 
+        year == max(year)
+      ), 
+      aes(y = cum_count),
+      label = curr_year,
+      colour = "red",
+      hjust = 0.9,
+      vjust = 0.1,
+      linewidth = 1.25,
+      boxcolour = "white",
+      alpha = 0.75,
+      label.padding = unit(0.1, "lines"),
+      gap = TRUE,
+      text_smoothing = 60
+    ) +
+    
+    scale_color_manual(
+      name = "Observed Quartile",
+      values = quartile_colors
+    ) +
+    
+    scale_x_date(
+      breaks = "2 weeks", date_labels = "%d %b"
+    ) +
+    
+    scale_y_continuous(position = "right") +
+    coord_cartesian(
+      xlim = as.Date(
+        c(
+          paste0(curr_year, "-08-01"), 
+          paste0(curr_year, "-11-05")
+        )
+      ),
+      expand = FALSE
+    ) +
+    
+    labs(
+      x = NULL, 
+      y = "Cumulative Stamp Falls Coho escapement"
+    ) +
+    
+    theme(
+      axis.title.y.right = element_text(
+        margin = margin(l = 0.5, unit = "lines")
+      )
+    ) +
+    
+    #Manually enter the colours:
+    scale_color_manual(
+      name = "Observed Quartile",
+      values = quartile_colors,
+      na.translate = FALSE  # removes NA from legend
+    ) +
+    
+    #Add a legend:
+    guides(
+      colour = guide_legend(
+        title = "Observed Quartile",
+        override.aes = list(
+          shape = 16,     # circle
+          size = 4,
+          linetype = 0    # no line
+        )
+      )
+    )
+)
+
+
+
 # # Save to the network folder
 # ggsave(
-#   plot = co_spaghetti_p, 
+#   plot = co_spaghetti_p_quart, 
 #   filename = paste0(
 #     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
 #     curr_year,
