@@ -1658,89 +1658,89 @@ ggsave(
   units = "in"
 )
 
-# 
-# 
-# # Chinook data versus previous 15 years
-# (cn_spaghetti_p <- stamp_cn |> 
-#     # Do the recent 10-year averages
-#     filter(
-#       between(year, max(year) - 11, max(year) -1),
-#       species == "CN",
-#       julian < 310
-#     ) |> 
-#     group_by(year) |> 
-#     mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
-#     ggplot(
-#       aes(
-#         as.Date(julian, origin = paste0(curr_year -1, "-12-31")), 
-#         cum_count
-#       )
-#     ) +
-#     # Historical data as thin grey lines
-#     geom_textline(
-#       aes(label = year, group = year, hjust = hjust),
-#       colour = "grey50",
-#       alpha = 0.7
-#     ) +
-#     # Current year as thick red line with semi-transparent label
-#     geom_labelline(
-#       data = filter(
-#         stamp_cn, 
-#         species == "CN", 
-#         year == max(year)
-#       ), 
-#       aes(y = cum_count),
-#       label = as.character(curr_year),
-#       colour = "red",
-#       hjust = 0.85,
-#       linewidth = 1.25,
-#       boxcolour = "white",
-#       alpha = 0.75,
-#       label.padding = unit(0.1, "lines"),
-#       gap = TRUE
-#     ) +
-#     scale_x_date(
-#       breaks = "2 weeks", 
-#       date_labels = "%d %b", 
-#       limits = as.Date(
-#         c(
-#           paste0(curr_year, "-08-01"), 
-#           paste0(curr_year, "-11-05")
-#         )
-#       ),
-#       expand = expansion(mult = 0)
-#     ) +
-#     scale_y_continuous(
-#       position = "right", # Put y axis on right to show count values at the end of the time series
-#       expand = expansion(mult = c(0, 0.05))
-#     ) + 
-#     guides(colour = "none") +
-#     labs(
-#       x = NULL, 
-#       y = "Cumulative Stamp Falls Chinook escapement"
-#     ) +
-#     theme(
-#       axis.title.y.right = element_text( # Increase y-axis title margin
-#         margin = margin(l = 0.5, unit = "lines")
-#       )
-#     ) 
-# )
-# 
-# 
-# 
-# # Save to the network folder
-# ggsave(
-#   plot = cn_spaghetti_p, 
-#   filename = paste0(
-#     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
-#     curr_year,
-#     "/A23/Escapement plot/",
-#     "R-PLOT_2024_CN_cum-esc-historic.png"
-#   ),
-#   height = 4.5,
-#   width = 8,
-#   units = "in"
-# )
+
+
+# Chinook data versus previous 15 years
+(cn_spaghetti_p <- stamp_cn |>
+    # Do the recent 10-year averages
+    filter(
+      between(year, max(year) - 11, max(year) -1),
+      species == "CN",
+      julian < 310
+    ) |>
+    group_by(year) |>
+    mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
+    ggplot(
+      aes(
+        as.Date(julian, origin = paste0(curr_year -1, "-12-31")),
+        cum_count
+      )
+    ) +
+    # Historical data as thin grey lines
+    geom_textline(
+      aes(label = year, group = year, hjust = hjust),
+      colour = "grey50",
+      alpha = 0.7
+    ) +
+    # Current year as thick red line with semi-transparent label
+    geom_labelline(
+      data = filter(
+        stamp_cn,
+        species == "CN",
+        year == max(year)
+      ),
+      aes(y = cum_count),
+      label = as.character(curr_year),
+      colour = "red",
+      hjust = 0.85,
+      linewidth = 1.25,
+      boxcolour = "white",
+      alpha = 0.75,
+      label.padding = unit(0.1, "lines"),
+      gap = TRUE
+    ) +
+    scale_x_date(
+      breaks = "2 weeks",
+      date_labels = "%d %b",
+      limits = as.Date(
+        c(
+          paste0(curr_year, "-08-01"),
+          paste0(curr_year, "-11-05")
+        )
+      ),
+      expand = expansion(mult = 0)
+    ) +
+    scale_y_continuous(
+      position = "right", # Put y axis on right to show count values at the end of the time series
+      expand = expansion(mult = c(0, 0.05))
+    ) +
+    guides(colour = "none") +
+    labs(
+      x = NULL,
+      y = "Cumulative Stamp Falls Chinook escapement"
+    ) +
+    theme(
+      axis.title.y.right = element_text( # Increase y-axis title margin
+        margin = margin(l = 0.5, unit = "lines")
+      )
+    )
+)
+
+
+
+# Save to the network folder
+ggsave(
+  plot = cn_spaghetti_p,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-PLOT_2024_CN_cum-esc-historic.png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
 
 
 # Coho curves -------------------------------------------------------------
