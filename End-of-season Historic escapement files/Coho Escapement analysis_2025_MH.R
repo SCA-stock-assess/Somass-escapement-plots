@@ -468,7 +468,6 @@ historic_cumulative <- historic_data_2015_2024 %>%
   ungroup()
 
 
-
 #C) Summarize across all the years by Month&Day:
 historic_summary_cumulative <- historic_cumulative %>%
   group_by(MonthDay) %>%
@@ -476,7 +475,7 @@ historic_summary_cumulative <- historic_cumulative %>%
     mean_marked = mean(cum_marked, na.rm = TRUE),
     sd_marked = sd(cum_marked, na.rm = TRUE),
     n_marked = sum(!is.na(cum_marked)),
-    
+
     mean_unmarked = mean(cum_unmarked, na.rm = TRUE),
     sd_unmarked = sd(cum_unmarked, na.rm = TRUE),
     n_unmarked = sum(!is.na(cum_unmarked))
@@ -485,7 +484,7 @@ historic_summary_cumulative <- historic_cumulative %>%
     se_marked = sd_marked / sqrt(n_marked),
     lower_marked = mean_marked - qt(0.975, df = n_marked - 1) * se_marked,
     upper_marked = mean_marked + qt(0.975, df = n_marked - 1) * se_marked,
-    
+
     se_unmarked = sd_unmarked / sqrt(n_unmarked),
     lower_unmarked = mean_unmarked - qt(0.975, df = n_unmarked - 1) * se_unmarked,
     upper_unmarked = mean_unmarked + qt(0.975, df = n_unmarked - 1) * se_unmarked
@@ -513,23 +512,45 @@ actual_total_data <- stamp_cn %>%
 cumulative_plot<- 
   ggplot() +
 
-    #HISTORIC RIBBONS & LINES:
-    geom_ribbon(data = historic_summary_cumulative,
-                aes(x = MonthDay, ymin = lower_marked, ymax = upper_marked),
-                fill = "blue", alpha = 0.2) +
-    geom_line(data = historic_summary_cumulative,
+    #HISTORIC RIBBONS & LINES (no smoothing):
+    # geom_ribbon(data = historic_summary_cumulative,
+    #             aes(x = MonthDay, ymin = lower_marked, ymax = upper_marked),
+    #             fill = "blue", alpha = 0.2) +
+    # geom_line(data = historic_summary_cumulative,
+    #           aes(x = MonthDay, y = mean_marked),
+    #           color = "blue", size = 1) +
+    # 
+    # geom_ribbon(data = historic_summary_cumulative,
+    #             aes(x = MonthDay, ymin = lower_unmarked, ymax = upper_unmarked),
+    #             fill = "darkgreen", alpha = 0.2) +
+    # geom_line(data = historic_summary_cumulative,
+    #           aes(x = MonthDay, y = mean_unmarked),
+    #           color = "darkgreen", size = 1) +
+
+  
+  #HISTORIC RIBBONS:
+geom_ribbon(data = historic_summary_cumulative,
+            aes(x = MonthDay, ymin = lower_marked, ymax = upper_marked),
+            fill = "blue", alpha = 0.2) +
+  
+  geom_ribbon(data = historic_summary_cumulative,
+              aes(x = MonthDay, ymin = lower_unmarked, ymax = upper_unmarked),
+              fill = "darkgreen", alpha = 0.2) +
+  
+  
+  # SMOOTHED LINES for historic marked and unmarked:
+  geom_smooth(data = historic_summary_cumulative,
               aes(x = MonthDay, y = mean_marked),
-              color = "blue", size = 1) +
-
-    geom_ribbon(data = historic_summary_cumulative,
-                aes(x = MonthDay, ymin = lower_unmarked, ymax = upper_unmarked),
-                fill = "darkgreen", alpha = 0.2) +
-    geom_line(data = historic_summary_cumulative,
+              method = "loess", se = FALSE,
+              color = "blue", size = 1, span = 0.3) +  # You can tweak span for smoothness
+  
+  geom_smooth(data = historic_summary_cumulative,
               aes(x = MonthDay, y = mean_unmarked),
-              color = "darkgreen", size = 1) +
+              method = "loess", se = FALSE,
+              color = "darkgreen", size = 1, span = 0.3) +
+  
 
-
-    #PREVIOUS YEAR'S LINES:
+    #PREVIOUS YEAR'S LINES (if you want to plot specific years):
     # #If you want them smoothed:
     # geom_smooth(data = co_years_long,
     #             aes(x = MonthDay, y = Count, color = factor(year), linetype = MarkStatus, group = interaction(year, MarkStatus)),
@@ -556,7 +577,8 @@ cumulative_plot<-
             color = "red", size = 1)  +
   
   # LEGENDS & SCALES:
-    
+  
+  #IF USING OTHER YEARS ON THIS PLOT:
     # scale_color_manual(
     #   name = "Year",
     #   values = c("2022" = "yellow", "2023" = "orange", "2024" = "red")
