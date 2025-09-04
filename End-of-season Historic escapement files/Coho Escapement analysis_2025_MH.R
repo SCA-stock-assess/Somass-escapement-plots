@@ -387,63 +387,64 @@ current_data <- read_xlsx(
 
 ########################## Apply Proportion of unmarked to current year Coho ################################
 #to project the amount of wild coho returning to date, we apply the proportion by month to the current year's return:
+#This is only if we don't have actual coho proportion data:
 
-#Step 1: Get current year monthly total Coho (assuming raw daily counts exist or cumulative counts converted to daily)
-current_year_monthly <- stamp_cn %>%
-  filter(year == curr_year, species == "CO") %>%
-  mutate(
-    Date = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
-    Month = month(Date),
-    MonthDay = as.Date(format(Date, "2000-%m-%d")) # Dummy year for x-axis
-  ) %>%
-  group_by(Month, MonthDay) %>%
-  summarise(
-    monthly_count = sum(cum_count, na.rm = TRUE),  # Sum daily counts for each month-day combo
-    .groups = "drop"  # Ungroup after summarise
-  )
-
-#Step 2: Join with historic monthly proportions
-proj_marked_unmarked <- current_year_monthly %>%
-  left_join(historic_monthly_props, by = "Month") %>%
-  mutate(
-    est_marked = monthly_count * prop_marked,
-    est_unmarked = monthly_count * prop_unmarked
-  )
-
-#Step 3: Prepare for plotting: convert to long format for marked/unmarked lines
-proj_long <- proj_marked_unmarked %>%
-  select(MonthDay, est_marked, est_unmarked) %>%
-  pivot_longer(cols = c(est_marked, est_unmarked),
-               names_to = "Type",
-               values_to = "Estimated_Count")
-
-
-
-#Step 4: make a summary of marked vs unmarked by month:
-historic_summary_mark_unmark <- historic_data_2015_2024 %>%
-  filter(Site == "Stamp") %>%
-  mutate(
-    ReviewDate = as.Date(`Review Date`),
-    MonthDay = as.Date(format(ReviewDate, "2000-%m-%d"))
-  ) %>%
-  group_by(MonthDay) %>%
-  summarise(
-    mean_marked = mean(`Co  Mark`, na.rm = TRUE),
-    sd_marked = sd(`Co  Mark`, na.rm = TRUE),
-    n_marked = sum(!is.na(`Co  Mark`)),
-    mean_unmarked = mean(`Co  NoMark`, na.rm = TRUE),
-    sd_unmarked = sd(`Co  NoMark`, na.rm = TRUE),
-    n_unmarked = sum(!is.na(`Co  NoMark`)),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    se_marked = sd_marked / sqrt(n_marked),
-    lower_marked = mean_marked - qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,  # Prevent degrees of freedom of more than 1
-    upper_marked = mean_marked + qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,
-    se_unmarked = sd_unmarked / sqrt(n_unmarked),
-    lower_unmarked = mean_unmarked - qt(0.975, df = pmax(n_unmarked - 1, 1)) * se_unmarked,
-    upper_unmarked = mean_unmarked + qt(0.975, df = pmax(n_unmarked - 1, 1)) * se_unmarked
-  )
+# #Step 1: Get current year monthly total Coho (assuming raw daily counts exist or cumulative counts converted to daily)
+# current_year_monthly <- stamp_cn %>%
+#   filter(year == curr_year, species == "CO") %>%
+#   mutate(
+#     Date = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+#     Month = month(Date),
+#     MonthDay = as.Date(format(Date, "2000-%m-%d")) # Dummy year for x-axis
+#   ) %>%
+#   group_by(Month, MonthDay) %>%
+#   summarise(
+#     monthly_count = sum(cum_count, na.rm = TRUE),  # Sum daily counts for each month-day combo
+#     .groups = "drop"  # Ungroup after summarise
+#   )
+# 
+# #Step 2: Join with historic monthly proportions
+# proj_marked_unmarked <- current_year_monthly %>%
+#   left_join(historic_monthly_props, by = "Month") %>%
+#   mutate(
+#     est_marked = monthly_count * prop_marked,
+#     est_unmarked = monthly_count * prop_unmarked
+#   )
+# 
+# #Step 3: Prepare for plotting: convert to long format for marked/unmarked lines
+# proj_long <- proj_marked_unmarked %>%
+#   select(MonthDay, est_marked, est_unmarked) %>%
+#   pivot_longer(cols = c(est_marked, est_unmarked),
+#                names_to = "Type",
+#                values_to = "Estimated_Count")
+# 
+# 
+# 
+# #Step 4: make a summary of marked vs unmarked by month:
+# historic_summary_mark_unmark <- historic_data_2015_2024 %>%
+#   filter(Site == "Stamp") %>%
+#   mutate(
+#     ReviewDate = as.Date(`Review Date`),
+#     MonthDay = as.Date(format(ReviewDate, "2000-%m-%d"))
+#   ) %>%
+#   group_by(MonthDay) %>%
+#   summarise(
+#     mean_marked = mean(`Co  Mark`, na.rm = TRUE),
+#     sd_marked = sd(`Co  Mark`, na.rm = TRUE),
+#     n_marked = sum(!is.na(`Co  Mark`)),
+#     mean_unmarked = mean(`Co  NoMark`, na.rm = TRUE),
+#     sd_unmarked = sd(`Co  NoMark`, na.rm = TRUE),
+#     n_unmarked = sum(!is.na(`Co  NoMark`)),
+#     .groups = "drop"
+#   ) %>%
+#   mutate(
+#     se_marked = sd_marked / sqrt(n_marked),
+#     lower_marked = mean_marked - qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,  # Prevent degrees of freedom of more than 1
+#     upper_marked = mean_marked + qt(0.975, df = pmax(n_marked - 1, 1)) * se_marked,
+#     se_unmarked = sd_unmarked / sqrt(n_unmarked),
+#     lower_unmarked = mean_unmarked - qt(0.975, df = pmax(n_unmarked - 1, 1)) * se_unmarked,
+#     upper_unmarked = mean_unmarked + qt(0.975, df = pmax(n_unmarked - 1, 1)) * se_unmarked
+#   )
 
 
 ########################## Plot the Marked vs Unmarked ################################
@@ -663,6 +664,112 @@ ggsave(
   width = 8,
   units = "in"
 )
+
+########################## Coho Timing Plot ################################
+#Make a dataset that looks at the historic data daily:
+
+historic_summary_daily <- historic_data_2015_2024 %>%
+  mutate(
+    MonthDay = as.Date(format(`Review Date`, "2000-%m-%d"))
+  ) %>%
+  group_by(MonthDay) %>%
+  summarise(
+    mean_marked = mean(`Co  Mark`, na.rm = TRUE),
+    lower_marked = quantile(`Co  Mark`, 0.10, na.rm = TRUE),
+    upper_marked = quantile(`Co  Mark`, 0.90, na.rm = TRUE),
+    
+    mean_unmarked = mean(`Co  NoMark`, na.rm = TRUE),
+    lower_unmarked = quantile(`Co  NoMark`, 0.10, na.rm = TRUE),
+    upper_unmarked = quantile(`Co  NoMark`, 0.90, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+
+daily_escapement_plot <- 
+  ggplot() +
+  
+  # HISTORIC RIBBONS
+  geom_ribbon(data = historic_summary_daily,
+              aes(x = MonthDay, ymin = lower_marked, ymax = upper_marked),
+              fill = "blue", alpha = 0.2) +
+  
+  geom_ribbon(data = historic_summary_daily,
+              aes(x = MonthDay, ymin = lower_unmarked, ymax = upper_unmarked),
+              fill = "darkgreen", alpha = 0.2) +
+  
+  # HISTORIC AVERAGE LINES
+  geom_line(data = historic_summary_daily,
+            aes(x = MonthDay, y = mean_marked),
+            color = "blue", size = 1) +
+  
+  geom_line(data = historic_summary_daily,
+            aes(x = MonthDay, y = mean_unmarked),
+            color = "darkgreen", size = 1) +
+  
+  
+  # CURRENT YEAR DAILY DATA
+  geom_line(data = current_data,
+            aes(x = MonthDay, y = Co_Mark, linetype = "Marked (Current Year)"),
+            color = "black", size = 1.2) +
+
+  geom_line(data = current_data,
+            aes(x = MonthDay, y = Co_NoMark, linetype = "Unmarked (Current Year)"),
+            color = "black", size = 1.2) +
+
+  
+  # LAYOUT AND SCALES
+  scale_linetype_manual(
+    name = "Current Year",
+    values = c(
+      "Marked (Current Year)" = "solid",
+      "Unmarked (Current Year)" = "dashed"
+    )
+  ) +
+  
+  scale_x_date(
+    date_labels = "%b-%d",
+    date_breaks = "1 week",
+    limits = as.Date(c("2000-08-01", "2000-10-20"))
+  ) +
+  
+  scale_y_continuous(
+    name = "Coho Count",
+    limits = c(0, 500)
+  ) +
+  
+  labs(
+    title = "Daily Coho Escapement: Historic Marked (blue) vs Unmarked (green)",
+    x = "Month-Day",
+    y = "Coho Count"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+# Print the plot
+daily_escapement_plot
+
+
+
+# Save to the network folder
+ggsave(
+  plot = daily_escapement_plot,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-PLOT_2025_CO_daily_markedvsunmarked",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
+
 
 
 ########################## Coho Spaghetti Plot ################################
