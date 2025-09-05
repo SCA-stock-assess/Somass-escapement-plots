@@ -1,8 +1,6 @@
-# Packages ----------------------------------------------------------------
+# Code by Mikayla Hamilton - September 2025
 
-pkgs <- c("tidyverse", "readxl", "ggridges", "geomtextpath")
-#install.packages(pkgs)
-  
+#Load the libraries
 library(tidyverse); theme_set(theme_bw(base_size = 14))
 library(readxl)
 library(ggridges)
@@ -328,7 +326,8 @@ historic_monthly_props
 
 
 
-############### Read in Coho & Chinook escapement data to date #############
+############### READ IN THE COHO AND CHINOOK ESCAPEMENT FILES ##################
+#Note: this is the same code that Nick used in the other escapement code
 
 # Load historical escapement data from August onward
 stamp_cn <- read_xlsx(
@@ -361,7 +360,13 @@ stamp_cn <- read_xlsx(
 
 
 
-#Load current Escapement data for marked vs unmarked:
+
+############### READ IN THE CURRENT YEAR'S MARKED VS UNMARKED ESCAPEMENT DATA ##################
+#We get this data from Graham Murrel with Hupcasath - he broke it down into marked vs unmarked during
+#the in-season chinook run this year for us to be able to analyze, but that doesn't typically get done
+#from what I understand
+
+
 current_data <- read_xlsx(
   "Daily Totals by Age 2025.xlsx",
   sheet = "Stamp CN&CO",
@@ -387,7 +392,7 @@ current_data <- read_xlsx(
 
 ########################## Apply Proportion of unmarked to current year Coho ################################
 #to project the amount of wild coho returning to date, we apply the proportion by month to the current year's return:
-#This is only if we don't have actual coho proportion data:
+#This is only if we don't have actual coho proportion data (ie. if Graham isn't supplying the marked vs unmarked break-down)
 
 # #Step 1: Get current year monthly total Coho (assuming raw daily counts exist or cumulative counts converted to daily)
 # current_year_monthly <- stamp_cn %>%
@@ -447,19 +452,23 @@ current_data <- read_xlsx(
 #   )
 
 
-########################## Plot the Marked vs Unmarked ################################
+########################## PPLOT THE MARKED VS UNMARKED ################################
 
 #Plot the marked vs unmarked for this year, AND the past few years:
-#A) Select which years you are interested in:
+
+#A) Select which years you are interested in: (if you want them to be on the plot)
 selected_years <- c(2024, 2023, 2022)
 
 
 co_years_long <- historic_data_2015_2024 %>%
-  filter(year %in% selected_years) %>%
+  #only select the years we are interested in:
+  filter(year %in% selected_years) %>% 
+  #Create a new column called MonthDay
   mutate(
-    MonthDay = as.Date(format(as.Date(`Review Date`), "2000-%m-%d"))
+    MonthDay = as.Date(format(as.Date(`Review Date`), "2000-%m-%d")) #set all to 2000 to align dates across different years
   ) %>%
   select(year, MonthDay, `Co  Mark`, `Co  NoMark`) %>%
+  #make the wide format into a long-format:
   pivot_longer(cols = c(`Co  Mark`, `Co  NoMark`),
                names_to = "Type",
                values_to = "Count") %>%
