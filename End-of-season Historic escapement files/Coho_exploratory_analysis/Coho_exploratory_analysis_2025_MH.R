@@ -350,8 +350,8 @@ CPUE_LM <- function(
   return(list(
     # model = model,
     # r_squared = r_squared,
-    # plot_simple = plot_simple,
-    plot_colourful = plot_colourful
+    plot_simple = plot_simple
+    # plot_colourful = plot_colourful
   ))
 }
 
@@ -371,7 +371,8 @@ CPUE_LM(
   escapement_data = coho_escapement_summary,
   Month = "08",
   cpue_metric = "CPUE_KR",
-  Sub_area = "23A"
+  Sub_area = "23A",
+  # remove_years = c(2000:2010)
   # remove_years = c(2000, 2013)
 )
 
@@ -382,6 +383,7 @@ CPUE_LM(
   Month = "08",
   cpue_metric = "CPUE_KR",
   Sub_area = "23B"
+  # remove_years = c(2000:2020) #regulations similar to 2025 in 2021-2024
 )
 
 #For August only, using kept AND released fish:#0.189
@@ -426,7 +428,8 @@ CPUE_LM(
   Month = "09",
   cpue_metric = "CPUE_KR",
   Sub_area = "23B"
-)
+  # remove_years = c(2000:2020) #regulations similar to 2025 in 2021-2024
+  )
 
 
 #For September only, using kept AND released fish: #0.324 OR #0.406 removing the specified years
@@ -478,7 +481,8 @@ CPUE_LM(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
-  cpue_metric = "CPUE_KR"
+  cpue_metric = "CPUE_KR",
+  remove_years = c(2000:2020) #regulations similar to 2025 in 2021-2024
   # remove_years = c(2001, 2013)
 )
 
