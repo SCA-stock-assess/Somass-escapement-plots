@@ -347,9 +347,9 @@ CPUE_LM <- function(
   
   # Return list of model and plots
   return(list(
-    model = model,
-    r_squared = r_squared,
-    plot_simple = plot_simple,
+    # model = model,
+    # r_squared = r_squared,
+    # plot_simple = plot_simple,
     plot_colourful = plot_colourful
   ))
 }
@@ -668,10 +668,10 @@ CPUE_LM_Quartiles <- function(
   
   ### Return results including years analyzed ###
   return(list(
-    model = model,
-    r_squared = r_squared,
-    years_analyzed = unique(regression_data$year),
-    plot_simple = plot_simple,
+    # model = model,
+    # r_squared = r_squared,
+    # years_analyzed = unique(regression_data$year),
+    # plot_simple = plot_simple,
     plot_colourful = plot_colourful
   ))
 }
