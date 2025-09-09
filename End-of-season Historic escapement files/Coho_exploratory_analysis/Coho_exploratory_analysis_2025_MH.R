@@ -283,7 +283,7 @@ CPUE_LM <- function(
   
   #Step 1) Create the model:
   formula <- as.formula(paste("final_escapement ~", cpue_metric))
-  
+  # formula <- as.formula(paste(cpue_metric, "~", "final_escapement"))
   
   #Step 2) Get the summary statistics:
   model <- lm(formula, data = regression_data)
@@ -434,8 +434,8 @@ CPUE_LM(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
   Month = "09",
-  cpue_metric = "CPUE_KR",
-  remove_years = c(2001, 2013)
+  cpue_metric = "CPUE_KR"
+  # remove_years = c(2001, 2013)
 )
 
 # # #For September only, using kept fish only: #0.296
