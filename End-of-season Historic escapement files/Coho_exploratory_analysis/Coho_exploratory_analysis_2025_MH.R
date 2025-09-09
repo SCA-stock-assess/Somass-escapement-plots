@@ -365,41 +365,40 @@ CPUE_LM <- function(
 
 ### AUGUST ###
 
-#For August only separated into sub-area (23A), using kept AND released fish:
+#For August only separated into sub-area (23A), using kept AND released fish: #0.089
 CPUE_LM(
   CPUE_data = CPUE_by_subarea_monthly,
   escapement_data = coho_escapement_summary,
   Month = "08",
   cpue_metric = "CPUE_KR",
   Sub_area = "23A"
-  # remove_years = c(2001, 2013)
+  # remove_years = c(2000, 2013)
 )
 
-#For August only separated into sub-area (23B), using kept AND released fish:
+#For August only separated into sub-area (23B), using kept AND released fish: #0.545
 CPUE_LM(
   CPUE_data = CPUE_by_subarea_monthly,
   escapement_data = coho_escapement_summary,
   Month = "08",
   cpue_metric = "CPUE_KR",
   Sub_area = "23B"
-  # remove_years = c(2001, 2013)
 )
 
-#For August only, using kept AND released fish::
+#For August only, using kept AND released fish:#0.189
 CPUE_LM(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
   Month = "08",
   cpue_metric = "CPUE_KR"
-  # remove_years = c(2001, 2013)
+  # remove_years = c(2001, 2000, 2013)
 )
 
 
-# #For August only, using kept fish only:
+# # #For August only, using kept fish only: #0.131
 # CPUE_LM(
 #   CPUE_data = CPUE_total_monthly,
 #   escapement_data = coho_escapement_summary,
-#   month = "08",
+#   Month = "08",
 #   cpue_metric = "CPUE_K"
 #   # remove_years = c(2001, 2013)
 # )
@@ -410,7 +409,7 @@ CPUE_LM(
 
 ### SEPTEMBER ###
 
-#For September only separated into sub-area (23A), using kept AND released fish::
+#For September only separated into sub-area (23A), using kept AND released fish:#0.281 OR #0.314 removing the specified years
 CPUE_LM(
   CPUE_data = CPUE_by_subarea_monthly,
   escapement_data = coho_escapement_summary,
@@ -420,31 +419,30 @@ CPUE_LM(
   # remove_years = c(2001, 2013)
 )
 
-#For September only separated into sub-area (23A), using kept AND released fish::
+#For September only separated into sub-area (23B), using kept AND released fish:#0.315
 CPUE_LM(
   CPUE_data = CPUE_by_subarea_monthly,
   escapement_data = coho_escapement_summary,
   Month = "09",
   cpue_metric = "CPUE_KR",
   Sub_area = "23B"
-  # remove_years = c(2001, 2013)
 )
 
 
-#For September only, using kept AND released fish::
-CPUE_LM(
+#For September only, using kept AND released fish: #0.324 OR #0.406 removing the specified years
+CPUE_LM( 
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
   Month = "09",
-  cpue_metric = "CPUE_KR"
-  # remove_years = c(2001, 2013)
+  cpue_metric = "CPUE_KR",
+  remove_years = c(2001, 2013)
 )
 
-# #For September only, using kept fish only:
+# # #For September only, using kept fish only: #0.296
 # CPUE_LM(
 #   CPUE_data = CPUE_total_monthly,
 #   escapement_data = coho_escapement_summary,
-#   month = "09",
+#   Month = "09",
 #   cpue_metric = "CPUE_K"
 #   # remove_years = c(2001, 2013)
 # )
@@ -455,7 +453,7 @@ CPUE_LM(
 
 ### AUGUST & SEPTEMBER ###
 
-#For August & September  separated into sub-area (23A), using kept AND released fish::
+#For August & September  separated into sub-area (23A), using kept AND released fish: #0.16 OR #0.183 removing the specified years
 CPUE_LM(
   CPUE_data = CPUE_by_subarea_monthly,
   escapement_data = coho_escapement_summary,
@@ -465,18 +463,17 @@ CPUE_LM(
   # remove_years = c(2001, 2013)
 )
 
-#For August & September  separated into sub-area (23B), using kept AND released fish::
+#For August & September  separated into sub-area (23B), using kept AND released fish: #0.279
 CPUE_LM(
   CPUE_data = CPUE_by_subarea_monthly,
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
   cpue_metric = "CPUE_KR",
   Sub_area = "23B"
-  # remove_years = c(2001, 2013)
 )
 
 
-#For  August & September, using kept AND released fish::
+#For  August & September, using kept AND released fish: #0.204 OR #0.25 removing the specified years
 CPUE_LM(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -485,35 +482,16 @@ CPUE_LM(
   # remove_years = c(2001, 2013)
 )
 
-# #For  August & September, using kept fish only:
+# # #For  August & September, using kept fish only: #0.176
 # CPUE_LM(
 #   CPUE_data = CPUE_total_monthly,
 #   escapement_data = coho_escapement_summary,
-#   month = c("09","08"),
+#   Month = c("09","08"),
 #   cpue_metric = "CPUE_K"
 #   # remove_years = c(2001, 2013)
 # )
-
-
-
-
-
-
-#IF YOU WANT SPECIFIC RESULTS:
-#Here is an example of what to run to call on the simple plot:
-
-# results <- 
-#   #For September only:
-#   CPUE_LM(
-#     CPUE_data = CPUE_total_monthly,
-#     escapement_data = coho_escapement_summary,
-#     month = "09",
-#     cpue_metric = "CPUE_KR"
-#     # remove_years = c(2001, 2013)
-#   )
 # 
-# results$plot_simple
-# 
+
 
 
 
@@ -676,7 +654,7 @@ CPUE_LM_Quartiles <- function(
 
 ### AUGUST ###
 
-#Quartile: 1
+#Quartile: 1 #0.054
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -686,7 +664,7 @@ CPUE_LM_Quartiles(
   # remove_years = c(2001, 2013)
 )
 
-#Quartile: 2
+#Quartile: 2 #0.313
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -697,7 +675,7 @@ CPUE_LM_Quartiles(
 )
 
 
-#Quartile: 3
+#Quartile: 3 #0.571
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -708,7 +686,7 @@ CPUE_LM_Quartiles(
 )
 
 
-#Quartile: 4
+#Quartile: 4 #0.002
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -725,7 +703,7 @@ CPUE_LM_Quartiles(
 ### SEPTEMBER ###
 
 
-#Quartile: 1
+#Quartile: 1 #0.008
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -735,7 +713,7 @@ CPUE_LM_Quartiles(
   # remove_years = c(2001, 2013)
 )
 
-#Quartile: 2
+#Quartile: 2 #0.379
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -746,7 +724,7 @@ CPUE_LM_Quartiles(
 )
 
 
-#Quartile: 3
+#Quartile: 3 #0.000
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -757,7 +735,7 @@ CPUE_LM_Quartiles(
 )
 
 
-#Quartile: 4
+#Quartile: 4 #0.066
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -773,8 +751,8 @@ CPUE_LM_Quartiles(
 
 ### AUGUST & SEPTEMBER ###
 
-
-#Quartile: 1
+ 
+#Quartile: 1 #0.007
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -784,7 +762,7 @@ CPUE_LM_Quartiles(
   # remove_years = c(2001, 2013)
 )
 
-#Quartile: 2
+#Quartile: 2 #0.08
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -795,7 +773,7 @@ CPUE_LM_Quartiles(
 )
 
 
-#Quartile: 3
+#Quartile: 3 #0.009
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
@@ -806,7 +784,7 @@ CPUE_LM_Quartiles(
 )
 
 
-#Quartile: 4
+#Quartile: 4 #0.025
 CPUE_LM_Quartiles(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
