@@ -41,6 +41,7 @@ crest_pull <- crest_pull %>%
     REGION, AREA, CO_ALL_K, CO_UNK_K, CO_AD_K, CO_NM_K, 
     CO_RL, CO_RSL, B_CO
   ) %>%
+  
   #Step 2) Re-name the columns to something that makes sense (more descriptive)
   rename(
     year = YEAR,
@@ -78,6 +79,11 @@ crest_pull <- crest_pull %>%
   )
 
 
+#Step 4) Filter to only have Alberni Inlet (we aren't interested in the other areas):
+crest_pull <- crest_pull %>%
+  filter(
+    region == "Area 23 (Alberni Canal)"
+  )
 
 
 #################### CREATE A CPUE DATABASE #####################
@@ -133,8 +139,38 @@ CPUE_total <- crest_pull %>%
   )
 
 
+#Step 3) Now calculate it for the entire month we have data for:
+CPUE_by_subarea_monthly <- crest_pull %>%
+  group_by(year,month, sub_area) %>%
+  summarise(
+    number_of_interviews = n_distinct(interview_number), #count the number of interviews
+    total_anglers = sum(coalesce(number_of_anglers, 0)), #sum the total number of anglers
+    total_hours_fished = sum(coalesce(hours_fished, 0)), #sum the total number of hours fished
+    total_catch_kr = sum(coalesce(Catch_KR, 0)), #sum the total catch (kept and released) fish
+    total_catch_k = sum(coalesce(Catch_K, 0)), #sum the total catch (kept)
+    
+    #Calculate CPUE:
+    CPUE_KR = total_catch_kr / number_of_interviews,#from kept and released fish
+    CPUE_K = total_catch_k / number_of_interviews, #from kept fish only
+    
+    .groups = "drop" #drop all the other groups
+  )
 
-
+CPUE_total_monthly <- crest_pull %>%
+  group_by(year,month) %>%
+  summarise(
+    number_of_interviews = n_distinct(interview_number), #count the number of interviews
+    total_anglers = sum(coalesce(number_of_anglers, 0)), #sum the total number of anglers
+    total_hours_fished = sum(coalesce(hours_fished, 0)), #sum the total number of hours fished
+    total_catch_kr = sum(coalesce(Catch_KR, 0)), #sum the total catch (kept and released) fish
+    total_catch_k = sum(coalesce(Catch_K, 0)), #sum the total catch (kept)
+    
+    #Calculate CPUE:
+    CPUE_KR = total_catch_kr / number_of_interviews,#from kept and released fish
+    CPUE_K = total_catch_k / number_of_interviews, #from kept fish only
+    
+    .groups = "drop" #drop all the other groups
+  )
 
 ############### READ IN THE COHO AND CHINOOK ESCAPEMENT FILES ##################
 #Note: this is the same code that Nick used in the other escapement code
@@ -171,7 +207,20 @@ stamp_cn <- read_xlsx(
 
 
 ########################## CLEAN UP THE ESCAPEMENT #############################
+#we want to get the total escapement of Coho only for August, September and October, as well as
+#the final escapement for the year:
 
+coho_escapement_summary <- stamp_cn %>%
+  filter(species == "CO") %>%
+  mutate(month = month(date)) %>%
+  group_by(year) %>%
+  summarise(
+    coho_august = sum(count[month == 8], na.rm = TRUE),
+    coho_sept   = sum(count[month == 9], na.rm = TRUE),
+    coho_oct    = sum(count[month == 10], na.rm = TRUE),
+    final_escapement = max(ann_ttl, na.rm = TRUE),
+    .groups = "drop"
+  )
 
 
 
@@ -179,5 +228,286 @@ stamp_cn <- read_xlsx(
 ########################## LINEAR REGRESSION ANALYSIS ###########################
 #Come up with a linear regression to determine whether there is a relationship between CPUE and Escapement
 
+#Here I create a function that plots the linear model based off of which CPUE we use, which month we use,
+#and which sub-area we use (as an option)
+
+#The function is named CPUE_LM (Catch per unit effort Linear Model)
 
 
+########################## CREATE A FUNCTION ###########################
+CPUE_LM <- function(
+    CPUE_data,                 # can be: CPUE_by_subarea_monthly, CPUE_total_monthly
+    escapement_data,           # coho_escapement_summary data frame
+    month = "09",              # enter it as a character - ex. "08" or "09"
+    cpue_metric = "CPUE_KR",   # either "CPUE_KR" or "CPUE_K"
+    remove_years = NULL,       # vector of years to remove, e.g. c(2001, 2013)
+    sub_area = NULL            # can be: 23A or 23B
+) {
+ 
+  
+  ### Part 1: Prepare Data ###
+  
+  #Step 1) Filter CPUE data by month, year range, and optional sub_area:
+  filtered_cpue <- CPUE_data %>%
+    filter(month == month,
+           #only look at years we have data for (2000 onward)
+           as.numeric(year) >= 2000,
+           as.numeric(year) < curr_year) %>%
+    mutate(year = as.numeric(year)) %>%
+    select(year, all_of(cpue_metric))
+  
+  #filter to sub-area if we selct a sub-area:
+  if (!is.null(sub_area) && "sub_area" %in% colnames(CPUE_data)) {
+    filtered_cpue <- filtered_cpue %>%
+      filter(sub_area == sub_area)
+  }
+  
+  
+  # Step 2) Join with escapement data by year:
+  regression_data <- filtered_cpue %>%
+    inner_join(escapement_data, by = "year") %>%
+    select(year, all_of(cpue_metric), final_escapement)
+  
+  
+  
+  # Step 3) Remove outlier years (if we want to):
+  if (!is.null(remove_years)) {
+    regression_data <- regression_data %>%
+      filter(!year %in% remove_years)
+  }
+  
+  
+  
+  
+  ### PART 2: Run model ###
+  
+  #Step 1) Create the model:
+  formula <- as.formula(paste("final_escapement ~", cpue_metric))
+  
+  
+  #Step 2) Get the summary statistics:
+  model <- lm(formula, data = regression_data)
+  r_squared <- round(summary(model)$r.squared, 3)
+  
+  
+  
+  
+  #### PART 3: Plot the Model ###
+  
+  #Step 0) Create a dynamic title for the plot (so if there is sub-area it uses it):
+
+  base_title <- paste("CPUE vs Final Coho Escapement for Month", month)
+  if (!is.null(sub_area)) {
+    base_title <- paste(base_title, "and sub-area", sub_area)
+  }
+  
+  
+  
+  
+  
+  #Step 1) Create a simple plot:
+  plot_simple <- 
+    ggplot(regression_data, aes_string(x = cpue_metric, y = "final_escapement")) +
+    geom_point(size = 3, color = "steelblue") +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    geom_text(aes(label = year), vjust = -1, size = 4, color = "steelblue") +
+    annotate("text",
+             x = max(regression_data[[cpue_metric]]) * 0.6,
+             y = max(regression_data$final_escapement) * 0.9,
+             label = paste("R² =", r_squared),
+             size = 5, color = "black") +
+    labs(
+      title = base_title,
+      x = cpue_metric,
+      y = "Final Coho Escapement"
+    ) +
+    theme_minimal()
+  
+  
+  
+  #Step 2) Create a more colourful plot: years are different colours in this one:
+  plot_colourful <- 
+    ggplot(regression_data, aes_string(x = cpue_metric, y = "final_escapement", color = "factor(year)")) +
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    annotate("text",
+             x = max(regression_data[[cpue_metric]]) * 0.6,
+             y = max(regression_data$final_escapement) * 0.9,
+             label = paste("R² =", r_squared),
+             size = 5, color = "black") +
+    labs(
+      title = base_title,
+      x = cpue_metric,
+      y = "Final Coho Escapement",
+      color = "Year"
+    ) +
+    theme_minimal()
+  
+  
+  
+  
+  # Return list of model and plots
+  return(list(
+    model = model,
+    r_squared = r_squared,
+    plot_simple = plot_simple,
+    plot_colourful = plot_colourful
+  ))
+}
+
+
+
+
+
+
+######################### CALL THE FUNCTION ###########################
+
+
+### AUGUST ###
+
+#For August only separated into sub-area (23A), using kept AND released fish:
+CPUE_LM(
+  CPUE_data = CPUE_by_subarea_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR",
+  sub_area = "23A"
+  # remove_years = c(2001, 2013)
+)
+
+#For August only separated into sub-area (23B), using kept AND released fish:
+CPUE_LM(
+  CPUE_data = CPUE_by_subarea_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR",
+  sub_area = "23A"
+  # remove_years = c(2001, 2013)
+)
+
+#For August only, using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR"
+  # remove_years = c(2001, 2013)
+)
+
+
+#For August only, using kept fish only:
+CPUE_LM(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_K"
+  # remove_years = c(2001, 2013)
+)
+
+
+
+
+
+### SEPTEMBER ###
+
+#For September only separated into sub-area (23A), using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_by_subarea_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR",
+  sub_area = "23A"
+  # remove_years = c(2001, 2013)
+)
+
+#For September only separated into sub-area (23A), using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_by_subarea_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR",
+  sub_area = "23B"
+  # remove_years = c(2001, 2013)
+)
+
+
+#For September only, using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR"
+  # remove_years = c(2001, 2013)
+)
+
+#For September only, using kept fish only:
+CPUE_LM(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_K"
+  # remove_years = c(2001, 2013)
+)
+
+
+### AUGUST & SEPTEMBER ###
+
+#For August & September  separated into sub-area (23A), using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_by_subarea_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR",
+  sub_area = "23A"
+  # remove_years = c(2001, 2013)
+)
+
+#For August & September  separated into sub-area (23B), using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_by_subarea_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR",
+  sub_area = "23B"
+  # remove_years = c(2001, 2013)
+)
+
+
+#For  August & September, using kept AND released fish::
+CPUE_LM(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR"
+  # remove_years = c(2001, 2013)
+)
+
+#For  August & September, using kept fish only:
+CPUE_LM(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_K"
+  # remove_years = c(2001, 2013)
+)
+
+
+
+
+
+
+#IF YOU WANT SPECIFIC RESULTS:
+#Here is an example of what to run to call on the simple plot:
+
+# results <- 
+#   #For September only:
+#   CPUE_LM(
+#     CPUE_data = CPUE_total_monthly,
+#     escapement_data = coho_escapement_summary,
+#     month = "09",
+#     cpue_metric = "CPUE_KR"
+#     # remove_years = c(2001, 2013)
+#   )
+# 
+# results$plot_simple
+# 
