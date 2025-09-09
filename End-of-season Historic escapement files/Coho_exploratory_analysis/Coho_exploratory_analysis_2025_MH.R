@@ -234,7 +234,7 @@ coho_escapement_summary <- stamp_cn %>%
 #The function is named CPUE_LM (Catch per unit effort Linear Model)
 
 
-########################## CREATE A FUNCTION ###########################
+########################## CREATE A FUNCTION TO LOOK AT CPUE VS ESCAPEMENT ###########################
 CPUE_LM <- function(
     CPUE_data,                 # can be: CPUE_by_subarea_monthly, CPUE_total_monthly
     escapement_data,           # coho_escapement_summary data frame
@@ -256,18 +256,17 @@ CPUE_LM <- function(
     mutate(year = as.numeric(year)) %>%
     select(year, all_of(cpue_metric))
   
+  
   #filter to sub-area if we selct a sub-area:
   if (!is.null(sub_area) && "sub_area" %in% colnames(CPUE_data)) {
     filtered_cpue <- filtered_cpue %>%
       filter(sub_area == sub_area)
   }
   
-  
   # Step 2) Join with escapement data by year:
   regression_data <- filtered_cpue %>%
     inner_join(escapement_data, by = "year") %>%
     select(year, all_of(cpue_metric), final_escapement)
-  
   
   
   # Step 3) Remove outlier years (if we want to):
@@ -514,3 +513,317 @@ CPUE_LM(
 # 
 # results$plot_simple
 # 
+
+
+
+
+
+
+
+
+
+
+
+
+######################### READ IN QUARTILE DATA ###########################
+
+#Read in the Quartile data:
+  RCH_Quartiles <- read_xlsx(
+    "RbtObsQuart.xlsx",
+    sheet = "Sheet1",
+    na = ""
+  ) 
+
+#set Quartiles based off of year:
+
+Quartile_1 <- RCH_Quartiles %>%
+  filter(ObsQuart == 1) %>%
+  pull('Return Year')
+
+Quartile_2 <- RCH_Quartiles %>%
+  filter(ObsQuart == 2) %>%
+  pull('Return Year')
+
+Quartile_3 <- RCH_Quartiles %>%
+  filter(ObsQuart == 3) %>%
+  pull('Return Year')
+
+Quartile_4 <- RCH_Quartiles %>%
+  filter(ObsQuart == 4) %>%
+  pull('Return Year')
+
+
+
+################### CREATE FUNCTION TO LOOK AT QUARTILES #######################
+CPUE_LM_Quartiles <- function(
+    CPUE_data,                 # can be: CPUE_by_subarea_monthly, CPUE_total_monthly
+    escapement_data,           # coho_escapement_summary data frame
+    month = "09",              # enter it as a character - ex. "08" or "09"
+    cpue_metric = "CPUE_KR",   # either "CPUE_KR" or "CPUE_K"
+    remove_years = NULL,       # vector of years to remove, e.g. c(2001, 2013)
+    sub_area = NULL,            # can be: 23A or 23B
+    years_to_use = NULL        # use the quartiles specified above here
+) {
+  
+  
+  ### Part 1: Prepare Data ###
+  
+  # Step 1) Filter CPUE data by month, year range, optional sub_area, and years_to_use if provided:
+  filtered_cpue <- CPUE_data %>%
+    filter(month == month,
+           as.numeric(year) >= 2000,
+           as.numeric(year) < curr_year) %>%
+    mutate(year = as.numeric(year)) %>%
+    select(year, all_of(cpue_metric))
+  
+  # Filter by sub-area if specified
+  if (!is.null(sub_area) && "sub_area" %in% colnames(CPUE_data)) {
+    filtered_cpue <- filtered_cpue %>%
+      filter(sub_area == sub_area)
+  }
+  
+  # Filter by years_to_use if provided
+  if (!is.null(years_to_use)) {
+    filtered_cpue <- filtered_cpue %>%
+      filter(year %in% years_to_use)
+  }
+  
+  # Step 2) Join with escapement data by year:
+  regression_data <- filtered_cpue %>%
+    inner_join(escapement_data, by = "year") %>%
+    select(year, all_of(cpue_metric), final_escapement)
+  
+  # Filter by years_to_use in escapement data as well to be safe
+  if (!is.null(years_to_use)) {
+    regression_data <- regression_data %>%
+      filter(year %in% years_to_use)
+  }
+  
+  # Step 3) Remove outlier years (if specified)
+  if (!is.null(remove_years)) {
+    regression_data <- regression_data %>%
+      filter(!year %in% remove_years)
+  }
+  
+  
+  
+  ### PART 2: Run model ###
+  
+  formula <- as.formula(paste("final_escapement ~", cpue_metric))
+  
+  #get the summary statistics:
+  model <- lm(formula, data = regression_data)
+  r_squared <- round(summary(model)$r.squared, 3)
+  
+  
+  
+  ### PART 3: Plot the Model ###
+  
+  #Create a dynamic title that will change with whatever was input:
+  base_title <- paste("CPUE vs Final Coho Escapement for Month", month)
+  if (!is.null(sub_area)) {
+    base_title <- paste(base_title, "and sub-area", sub_area)
+  }
+ 
+  
+  
+  #Step 1) create a simple plot:
+  plot_simple <- 
+    ggplot(regression_data, aes_string(x = cpue_metric, y = "final_escapement")) +
+    geom_point(size = 3, color = "steelblue") +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    geom_text(aes(label = year), vjust = -1, size = 4, color = "steelblue") +
+    annotate("text",
+             x = max(regression_data[[cpue_metric]]) * 0.6,
+             y = max(regression_data$final_escapement) * 0.9,
+             label = paste("R² =", r_squared),
+             size = 5, color = "black") +
+    labs(
+      title = base_title,
+      x = cpue_metric,
+      y = "Final Coho Escapement"
+    ) +
+    theme_minimal()
+  
+  
+  
+  
+  #Step 2) Create a more colourful plot: years are different colours in this one:
+  plot_colourful <- 
+    ggplot(regression_data, aes_string(x = cpue_metric, y = "final_escapement", color = "factor(year)")) +
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred") +
+    annotate("text",
+             x = max(regression_data[[cpue_metric]]) * 0.6,
+             y = max(regression_data$final_escapement) * 0.9,
+             label = paste("R² =", r_squared),
+             size = 5, color = "black") +
+    labs(
+      title = base_title,
+      x = cpue_metric,
+      y = "Final Coho Escapement",
+      color = "Year"
+    ) +
+    theme_minimal()
+  
+  ### Return results including years analyzed ###
+  return(list(
+    model = model,
+    r_squared = r_squared,
+    years_analyzed = unique(regression_data$year),
+    plot_simple = plot_simple,
+    plot_colourful = plot_colourful
+  ))
+}
+
+
+
+
+######################### CALL THE FUNCTION ###########################
+
+
+### AUGUST ###
+
+#Quartile: 1
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_1
+  # remove_years = c(2001, 2013)
+)
+
+#Quartile: 2
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_2
+  # remove_years = c(2001, 2013)
+)
+
+
+#Quartile: 3
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_3
+  # remove_years = c(2001, 2013)
+)
+
+
+#Quartile: 4
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "08",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_4
+  # remove_years = c(2001, 2013)
+)
+
+
+
+
+
+### SEPTEMBER ###
+
+
+#Quartile: 1
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_1
+  # remove_years = c(2001, 2013)
+)
+
+#Quartile: 2
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_2
+  # remove_years = c(2001, 2013)
+)
+
+
+#Quartile: 3
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_3
+  # remove_years = c(2001, 2013)
+)
+
+
+#Quartile: 4
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = "09",
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_4
+  # remove_years = c(2001, 2013)
+)
+
+
+
+
+
+### AUGUST & SEPTEMBER ###
+
+
+#Quartile: 1
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_1
+  # remove_years = c(2001, 2013)
+)
+
+#Quartile: 2
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_2
+  # remove_years = c(2001, 2013)
+)
+
+
+#Quartile: 3
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_3
+  # remove_years = c(2001, 2013)
+)
+
+
+#Quartile: 4
+CPUE_LM_Quartiles(
+  CPUE_data = CPUE_total_monthly,
+  escapement_data = coho_escapement_summary,
+  month = c("09","08"),
+  cpue_metric = "CPUE_KR",
+  years_to_use = Quartile_4
+  # remove_years = c(2001, 2013)
+)
+
+
+
+
