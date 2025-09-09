@@ -381,7 +381,7 @@ CPUE_LM(
   escapement_data = coho_escapement_summary,
   month = "08",
   cpue_metric = "CPUE_KR",
-  sub_area = "23A"
+  sub_area = "23B"
   # remove_years = c(2001, 2013)
 )
 
@@ -395,14 +395,14 @@ CPUE_LM(
 )
 
 
-#For August only, using kept fish only:
-CPUE_LM(
-  CPUE_data = CPUE_total_monthly,
-  escapement_data = coho_escapement_summary,
-  month = "08",
-  cpue_metric = "CPUE_K"
-  # remove_years = c(2001, 2013)
-)
+# #For August only, using kept fish only:
+# CPUE_LM(
+#   CPUE_data = CPUE_total_monthly,
+#   escapement_data = coho_escapement_summary,
+#   month = "08",
+#   cpue_metric = "CPUE_K"
+#   # remove_years = c(2001, 2013)
+# )
 
 
 
@@ -440,14 +440,17 @@ CPUE_LM(
   # remove_years = c(2001, 2013)
 )
 
-#For September only, using kept fish only:
-CPUE_LM(
-  CPUE_data = CPUE_total_monthly,
-  escapement_data = coho_escapement_summary,
-  month = "09",
-  cpue_metric = "CPUE_K"
-  # remove_years = c(2001, 2013)
-)
+# #For September only, using kept fish only:
+# CPUE_LM(
+#   CPUE_data = CPUE_total_monthly,
+#   escapement_data = coho_escapement_summary,
+#   month = "09",
+#   cpue_metric = "CPUE_K"
+#   # remove_years = c(2001, 2013)
+# )
+
+
+
 
 
 ### AUGUST & SEPTEMBER ###
@@ -482,14 +485,14 @@ CPUE_LM(
   # remove_years = c(2001, 2013)
 )
 
-#For  August & September, using kept fish only:
-CPUE_LM(
-  CPUE_data = CPUE_total_monthly,
-  escapement_data = coho_escapement_summary,
-  month = c("09","08"),
-  cpue_metric = "CPUE_K"
-  # remove_years = c(2001, 2013)
-)
+# #For  August & September, using kept fish only:
+# CPUE_LM(
+#   CPUE_data = CPUE_total_monthly,
+#   escapement_data = coho_escapement_summary,
+#   month = c("09","08"),
+#   cpue_metric = "CPUE_K"
+#   # remove_years = c(2001, 2013)
+# )
 
 
 
