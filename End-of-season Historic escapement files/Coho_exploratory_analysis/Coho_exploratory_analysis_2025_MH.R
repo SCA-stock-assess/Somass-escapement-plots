@@ -66,7 +66,7 @@ crest_pull <- crest_pull %>%
 #Catch_C&R: Here I am considering "Catch" what was caught AND what was released
 crest_pull <- crest_pull %>%
   mutate(
-    Catch_CR = coalesce(coho_all_kept, 0) +  #note this ",0" means if it is NA make it a zero instead
+    Catch_KR = coalesce(coho_all_kept, 0) +  #note this ",0" means if it is NA make it a zero instead
       coalesce(coho_released_legalsize, 0) + 
       coalesce(coho_released_sublegalsize, 0)
   )
@@ -74,7 +74,62 @@ crest_pull <- crest_pull %>%
 #Catch_C: ere I am considering "Catch" what was caught but NOT what was released
 crest_pull <- crest_pull %>%
   mutate(
-    Catch_C = coalesce(coho_all_kept, 0) #note this ",0" means if it is NA make it a zero instead
+    Catch_K = coalesce(coho_all_kept, 0) #note this ",0" means if it is NA make it a zero instead
+  )
+
+
+
+
+#################### CREATE A CPUE DATABASE #####################
+
+# #Step 0) Check for duplicates in interview_number
+# duplicate_check <- crest_pull %>%
+#   group_by(interview_number) %>%
+#   summarise(
+#     count = n(),
+#     unique_sub_areas = n_distinct(sub_area)
+#   ) %>%
+#   filter(count > 1)
+# 
+# duplicate_check
+# #this tells me that there are interviews that are separated into sub-areas
+
+
+
+#Step 1) Sum by date and sub-area:
+CPUE_by_subarea <- crest_pull %>%
+  group_by(date, sub_area) %>%
+  summarise(
+    number_of_interviews = n_distinct(interview_number), #count the number of interviews
+    total_anglers = sum(coalesce(number_of_anglers, 0)), #sum the total number of anglers
+    total_hours_fished = sum(coalesce(hours_fished, 0)), #sum the total number of hours fished
+    total_catch_kr = sum(coalesce(Catch_KR, 0)), #sum the total catch (kept and released) fish
+    total_catch_k = sum(coalesce(Catch_K, 0)), #sum the total catch (kept)
+    
+    #Calculate CPUE:
+    CPUE_KR = total_catch_kr / number_of_interviews,#from kept and released fish
+    CPUE_K = total_catch_k / number_of_interviews, #from kept fish only
+    
+    .groups = "drop" #drop all the other groups
+  )
+
+
+
+#Step 2) Sum by date only:
+CPUE_total <- crest_pull %>%
+  group_by(date) %>%
+  summarise(
+    number_of_interviews = n_distinct(interview_number), #count the number of interviews
+    total_anglers = sum(coalesce(number_of_anglers, 0)), #sum the total number of anglers
+    total_hours_fished = sum(coalesce(hours_fished, 0)), #sum the total number of hours fished
+    total_catch_kr = sum(coalesce(Catch_KR, 0)), #sum the total catch (kept and released) fish
+    total_catch_k = sum(coalesce(Catch_K, 0)), #sum the total catch (kept)
+    
+    #Calculate CPUE:
+    CPUE_KR = total_catch_kr / number_of_interviews,#from kept and released fish
+    CPUE_K = total_catch_k / number_of_interviews, #from kept fish only
+    
+    .groups = "drop" #drop all the other groups
   )
 
 
@@ -115,35 +170,14 @@ stamp_cn <- read_xlsx(
 
 
 
-
-############### READ IN THE CURRENT YEAR'S MARKED VS UNMARKED ESCAPEMENT DATA ##################
-#We get this data from Graham Murrel with Hupcasath - he broke it down into marked vs unmarked during
-#the in-season chinook run this year for us to be able to analyze, but that doesn't typically get done
-#from what I understand
+########################## CLEAN UP THE ESCAPEMENT #############################
 
 
-current_data <- read_xlsx(
-  "Daily Totals by Age 2025.xlsx",
-  sheet = "Stamp CN&CO",
-  na = ""
-) %>%
-  #Only select the columns we are interested in:
-  select(Date, "Co  Mark", "Co  NoMark") %>%
-  mutate(
-    year = curr_year,
-    # normalize to fixed year:
-    MonthDay = as.Date(format(Date, "2000-%m-%d")),  
-    Co_Mark = `Co  Mark`,
-    Co_NoMark = `Co  NoMark`
-  ) %>%
-  # ensure dates are in order for cumulative sums
-  arrange(Date) %>%
-  #we want this data as a cumulative sum:
-  mutate(
-    Co_Mark_Cumulative = cumsum(replace_na(Co_Mark, 0)),
-    Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
-  )
 
+
+
+########################## LINEAR REGRESSION ANALYSIS ###########################
+#Come up with a linear regression to determine whether there is a relationship between CPUE and Escapement
 
 
 
