@@ -426,7 +426,7 @@ current_data <- read_xlsx(
 
 
 
-# #Sproat
+# #Sproat - currently does not track marked vs unmarked fish (just assumed wild)
 # current_data <- read_xlsx(
 #   "Daily Totals by Age 2025.xlsx",
 #   sheet = " Sproat CN&CO",
@@ -838,6 +838,290 @@ ggsave(
   width = 8,
   units = "in"
 )
+
+########################## COHO WILD SPAGHETTI PLOT (STAMP) ################################
+
+RCH_Quartiles <- read_xlsx(
+  "RbtObsQuart.xlsx",
+  sheet = "Sheet1",
+  na = ""
+) 
+
+RCH_Quartiles <- RCH_Quartiles %>%
+  rename(year = `Return Year`)
+
+# Merge historic cumulative data with quartiles
+historic_cumulative_quart <- historic_cumulative %>%
+  left_join(RCH_Quartiles, by = "year") %>%
+  mutate(
+    MonthDay = as.Date(MonthDay),  # ensure date format
+    ObsQuart = factor(ObsQuart)    # factor for coloring
+  )
+
+# Define quartile colors
+quartile_colors <- c(
+  "4" = "#6DA544",    # Light green
+  "3" = "darkgreen",
+  "2" = "#D55E00",    # Orange
+  "1" = "#8B0000"     # Dark red
+)
+
+
+
+# Add dummy points to create a legend
+legend_quartiles <- tibble(
+  ObsQuart = factor(1:4),
+  x = as.Date("2000-08-01"),
+  y = 0
+)
+
+
+# Plot
+coho_unmarked_spaghetti_plot <- ggplot() +
+  
+  
+  # Force circle shape for the legend:
+  geom_point(
+    data = legend_quartiles,
+    aes(x = x, y = y, colour = ObsQuart),
+    shape = 16,
+    size = 4
+  ) +
+  
+  # Historic lines with year labels (except current year):
+  geom_textline(
+    data = historic_cumulative_quart %>% filter(year != curr_year),
+    
+    #look only at the unmarked coho (wild):
+    aes(x = MonthDay, y = cum_unmarked, label = year, 
+        group = year, colour = ObsQuart, hjust = runif(1, 0.8, 1)),
+    linewidth = 0.5,
+    alpha = 0.9,
+    show.legend = TRUE
+  ) +
+  
+  # Current year (2025) bold red line with label:
+  geom_labelline(
+    data = current_data,
+    
+    #Look only at the unmarked coho (wild):
+    aes(x = MonthDay, y = Co_NoMark_Cumulative),
+    label = curr_year,
+    colour = "red",
+    linewidth = 1.5,
+    boxcolour = "white",
+    alpha = 0.9,
+    label.padding = unit(0.15, "lines"),
+    hjust = 0.9,
+    vjust = 0.1,
+    gap = TRUE,
+    text_smoothing = 60
+  ) +
+  
+  # Color scale for quartiles:
+  scale_color_manual(
+    name = "Observed Quartile",
+    values = quartile_colors,
+    na.translate = FALSE
+  ) +
+  
+  # X and Y axes:
+  scale_x_date(
+    date_labels = "%b-%d",
+    date_breaks = "1 week",
+    limits = as.Date(c("2000-08-01", "2000-10-20"))
+  ) +
+  
+  scale_y_continuous(
+    name = "Cumulative Coho Escapement",
+    limits = c(0, 15000),
+    expand = expansion(mult = c(0, 0.05)),
+    position = "right"
+  ) +
+  
+  # Labels and theme:
+  labs(
+    title = "Stamp River Unmarked Coho Escapement – Historic by Quartile and 2025 in Red",
+    x = "Date (Month-Day)",
+    y = "Cumulative Count"
+  ) +
+  
+  
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y.right = element_text(margin = margin(l = 0.5, unit = "lines")),
+    legend.position = "right"
+  ) +
+  
+  #set the guide for the legend:
+  guides(
+    colour = guide_legend(
+      title = "Observed Quartile",
+      override.aes = list(
+        shape = 16,
+        size = 4,
+        linetype = 0
+      )
+    )
+  )
+
+
+# Display plot
+print(coho_unmarked_spaghetti_plot)
+
+
+
+
+
+# Save to the network folder
+ggsave(
+  plot = coho_unmarked_spaghetti_plot,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-coho_unmarked_spaghetti_plot",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
+
+
+
+########################## COHO MARKED SPAGHETTI PLOT (STAMP) ################################
+
+RCH_Quartiles <- read_xlsx(
+  "RbtObsQuart.xlsx",
+  sheet = "Sheet1",
+  na = ""
+) 
+
+RCH_Quartiles <- RCH_Quartiles %>%
+  rename(year = `Return Year`)
+
+# Merge historic cumulative data with quartiles
+historic_cumulative_quart <- historic_cumulative %>%
+  left_join(RCH_Quartiles, by = "year") %>%
+  mutate(
+    MonthDay = as.Date(MonthDay),  # ensure date format
+    ObsQuart = factor(ObsQuart)    # factor for coloring
+  )
+
+# Define quartile colors
+quartile_colors <- c(
+  "4" = "#6DA544",    # Light green
+  "3" = "darkgreen",
+  "2" = "#D55E00",    # Orange
+  "1" = "#8B0000"     # Dark red
+)
+
+
+
+# Add dummy points to create a legend
+legend_quartiles <- tibble(
+  ObsQuart = factor(1:4),
+  x = as.Date("2000-08-01"),
+  y = 0
+)
+
+
+# Plot
+coho_marked_spaghetti_plot <- ggplot() +
+  
+  
+  # Force circle shape for the legend:
+  geom_point(
+    data = legend_quartiles,
+    aes(x = x, y = y, colour = ObsQuart),
+    shape = 16,
+    size = 4
+  ) +
+  
+  # Historic lines with year labels (except current year):
+  geom_textline(
+    data = historic_cumulative_quart %>% filter(year != curr_year),
+    
+    #look only at the marked coho (hatchery):
+    aes(x = MonthDay, y = cum_marked, label = year, 
+        group = year, colour = ObsQuart, hjust = runif(1, 0.8, 1)),
+    linewidth = 0.5,
+    alpha = 0.9,
+    show.legend = TRUE
+  ) +
+  
+  # Current year (2025) bold red line with label:
+  geom_labelline(
+    data = current_data,
+    
+    #Look only at the ma coho (hatchery):
+    aes(x = MonthDay, y = Co_Mark_Cumulative),
+    label = curr_year,
+    colour = "red",
+    linewidth = 1.5,
+    boxcolour = "white",
+    alpha = 0.9,
+    label.padding = unit(0.15, "lines"),
+    hjust = 0.9,
+    vjust = 0.1,
+    gap = TRUE,
+    text_smoothing = 60
+  ) +
+  
+  # Color scale for quartiles:
+  scale_color_manual(
+    name = "Observed Quartile",
+    values = quartile_colors,
+    na.translate = FALSE
+  ) +
+  
+  # X and Y axes:
+  scale_x_date(
+    date_labels = "%b-%d",
+    date_breaks = "1 week",
+    limits = as.Date(c("2000-08-01", "2000-10-20"))
+  ) +
+  
+  scale_y_continuous(
+    name = "Cumulative Coho Escapement",
+    limits = c(0, 15000),
+    expand = expansion(mult = c(0, 0.05)),
+    position = "right"
+  ) +
+  
+  # Labels and theme:
+  labs(
+    title = "Stamp River Coho Escapement – Historic by Quartile and 2025 in Red",
+    x = "Date (Month-Day)",
+    y = "Cumulative Count"
+  ) +
+  
+  
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y.right = element_text(margin = margin(l = 0.5, unit = "lines")),
+    legend.position = "right"
+  ) +
+  
+  #set the guide for the legend:
+  guides(
+    colour = guide_legend(
+      title = "Observed Quartile",
+      override.aes = list(
+        shape = 16,
+        size = 4,
+        linetype = 0
+      )
+    )
+  )
+
+
+# Display plot
+print(coho_marked_spaghetti_plot)
 
 
 
