@@ -329,10 +329,45 @@ historic_monthly_props
 ############### READ IN THE COHO AND CHINOOK ESCAPEMENT FILES ##################
 #Note: this is the same code that Nick used in the other escapement code
 
+#STAMP FALLS:
 # Load historical escapement data from August onward
 stamp_cn <- read_xlsx(
   "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/TERMINAL_AREAS/TERMRBT/Stampfalls.xlsx",
   sheet = "STAMP Escapement Data",
+  skip = 28,
+  na = ""
+) |> 
+  select(1:14) |> 
+  pivot_longer(
+    cols = CO:UNK,
+    names_to = "species",
+    values_to = "count"
+  ) |> 
+  rename_with(tolower) |> 
+  mutate(
+    date = as.Date(date),
+    count = if_else(year < max(year) & is.na(count), 0, count)
+  ) |> 
+  group_by(year, species) |> 
+  arrange(date, .by_group = TRUE) |> 
+  # Get cumulative counts for each year and cumulative proportions
+  mutate(
+    cum_count = cumsum(count),
+    ann_ttl = sum(count, na.rm = TRUE),
+    cum_prop = cum_count/ann_ttl,
+    julian = date |> format("%j") |> as.numeric()
+  ) |> 
+  ungroup()
+
+
+
+
+#SPROAT:
+
+# Load historical escapement data from August onward
+sproat_cn <- read_xlsx(
+  "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/TERMINAL_AREAS/TERMRBT/Stampfalls.xlsx",
+  sheet = "Sproat Escapement Data ",
   skip = 28,
   na = ""
 ) |> 
@@ -366,7 +401,7 @@ stamp_cn <- read_xlsx(
 #the in-season chinook run this year for us to be able to analyze, but that doesn't typically get done
 #from what I understand
 
-
+#stamp:
 current_data <- read_xlsx(
   "Daily Totals by Age 2025.xlsx",
   sheet = "Stamp CN&CO",
@@ -388,6 +423,31 @@ current_data <- read_xlsx(
     Co_Mark_Cumulative = cumsum(replace_na(Co_Mark, 0)),
     Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
   )
+
+
+
+# #Sproat
+# current_data <- read_xlsx(
+#   "Daily Totals by Age 2025.xlsx",
+#   sheet = " Sproat CN&CO",
+#   na = ""
+# ) %>%
+#   #Only select the columns we are interested in:
+#   select(Date, "Co  Mark", "Co  NoMark") %>%
+#   mutate(
+#     year = curr_year,
+#     # normalize to fixed year:
+#     MonthDay = as.Date(format(Date, "2000-%m-%d")),  
+#     Co_Mark = `Co  Mark`,
+#     Co_NoMark = `Co  NoMark`
+#   ) %>%
+#   # ensure dates are in order for cumulative sums
+#   arrange(Date) %>%
+#   #we want this data as a cumulative sum:
+#   mutate(
+#     Co_Mark_Cumulative = cumsum(replace_na(Co_Mark, 0)),
+#     Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
+#   )
 
 
 ########################## Apply Proportion of unmarked to current year Coho ################################
@@ -781,7 +841,7 @@ ggsave(
 
 
 
-########################## Coho Spaghetti Plot ################################
+########################## Coho Spaghetti Plot STAMP ################################
 #Read in the Quartile data:
 
 RCH_Quartiles <- read_xlsx(
@@ -1015,4 +1075,305 @@ ggsave(
 )
 
 
+########################## Coho Spaghetti Plot SPROAT ################################
+#Read in the Quartile data:
+
+RCH_Quartiles <- read_xlsx(
+  "RbtObsQuart.xlsx",
+  sheet = "Sheet1",
+  na = ""
+) 
+
+
+#NOT COLOURED ACCORDING TO QUARTILES:
+# Summarise data and feed into plot
+(co_spaghetti_p <- sproat_cn |> 
+    # Compare to the last 10 years
+    filter(
+      between(year, max(year) - 11, max(year) -1),
+      species == "CO",
+      julian < 310
+    ) |> 
+    group_by(year) |> 
+    mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
+    ggplot(
+      aes(
+        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+        cum_count
+      )
+    ) +
+    # Historical data as thin grey lines
+    geom_textline(
+      aes(label = year, group = year, hjust = hjust),
+      colour = "grey50",
+      alpha = 0.7
+    ) +
+    # 2023 as thick red line with semi-transparent label
+    geom_labelline(
+      data = filter(
+        sproat_cn, 
+        species == "CO", 
+        year == max(year)
+      ), 
+      aes(y = cum_count),
+      label = curr_year,
+      colour = "red",
+      hjust = 0.9,
+      vjust = 0.1,
+      linewidth = 1.25,
+      boxcolour = "white",
+      alpha = 0.75,
+      label.padding = unit(0.1, "lines"),
+      gap = TRUE,
+      text_smoothing = 60
+    ) +
+    scale_x_date(
+      breaks = "2 weeks", date_labels = "%d %b"
+    ) +
+    scale_y_continuous(position = "right") + # Put y axis on right to show count values at the end of the time series
+    guides(colour = "none") +
+    coord_cartesian(
+      xlim = as.Date(
+        c(
+          paste0(curr_year, "-08-01"), 
+          paste0(curr_year, "-11-05")
+        )
+      ),
+      expand = FALSE
+    ) +
+    labs(
+      x = NULL, 
+      y = "Cumulative Sproat Falls Coho escapement"
+    ) +
+    theme(
+      axis.title.y.right = element_text( # Increase y-axis title margin
+        margin = margin(l = 0.5, unit = "lines")
+      )
+    ) 
+)
+
+
+
+
+#sproat
+#NOT COLOURED ACCORDING TO QUARTILES:
+# Summarise data and feed into plot
+(co_spaghetti_p <- sproat_cn |> 
+    # Compare to the last 10 years
+    filter(
+      between(year, max(year) - 11, max(year) -1),
+      species == "CO",
+      julian < 310
+    ) |> 
+    group_by(year) |> 
+    mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
+    ggplot(
+      aes(
+        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+        cum_count
+      )
+    ) +
+    # Historical data as thin grey lines
+    geom_textline(
+      aes(label = year, group = year, hjust = hjust),
+      colour = "grey50",
+      alpha = 0.7
+    ) +
+    # 2023 as thick red line with semi-transparent label
+    geom_labelline(
+      data = filter(
+        sproat_cn, 
+        species == "CO", 
+        year == max(year)
+      ), 
+      aes(y = cum_count),
+      label = curr_year,
+      colour = "red",
+      hjust = 0.9,
+      vjust = 0.1,
+      linewidth = 1.25,
+      boxcolour = "white",
+      alpha = 0.75,
+      label.padding = unit(0.1, "lines"),
+      gap = TRUE,
+      text_smoothing = 60
+    ) +
+    scale_x_date(
+      breaks = "2 weeks", date_labels = "%d %b"
+    ) +
+    scale_y_continuous(position = "right") + # Put y axis on right to show count values at the end of the time series
+    guides(colour = "none") +
+    coord_cartesian(
+      xlim = as.Date(
+        c(
+          paste0(curr_year, "-08-01"), 
+          paste0(curr_year, "-11-05")
+        )
+      ),
+      expand = FALSE
+    ) +
+    labs(
+      x = NULL, 
+      y = "Cumulative Sproat Falls Coho escapement"
+    ) +
+    theme(
+      axis.title.y.right = element_text( # Increase y-axis title margin
+        margin = margin(l = 0.5, unit = "lines")
+      )
+    ) 
+)
+
+
+
+#COLOURED ACCORDING TO QUARTILES:
+
+#A) Rename the columns:
+RCH_Quartiles <- RCH_Quartiles %>%
+  rename(year = `Return Year`)
+
+#B) Merge the quartiles with plotting data:
+sproat_cn_with_quartiles <- sproat_cn %>%
+  left_join(RCH_Quartiles, by = "year")
+
+sproat_cn_with_quartiles |> 
+  filter(!is.na(ObsQuart))
+
+#C) Set the quartiles to specific colours:
+# quartile_colors <- c(
+#   "1" = "#1b9e77",  
+#   "2" = "#7570b3",
+#   "3" = "#e7298a",  
+#   "4" = "#d95f02" 
+# )
+
+quartile_colors <- c(
+  "4" = "#6DA544",  
+  "3" = "darkgreen",
+  "2" = "#D55E00",  
+  "1" = "#8B0000" 
+)
+
+legend_quartiles <- tibble(
+  ObsQuart = factor(1:4),
+  x = as.Date("2000-08-01"),
+  y = 0
+)
+
+# Summarise data and feed into plot
+(co_spaghetti_p_quart <- sproat_cn_with_quartiles |> 
+    filter(
+      between(year, max(year) - 11, max(year) -1),
+      species == "CO",
+      julian < 310
+    ) |> 
+    group_by(year) |> 
+    mutate(hjust = runif(1, 0.8, 1)) |> 
+    ggplot(
+      aes(
+        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+        cum_count
+      )
+    ) +
+    
+    geom_point(
+      data = legend_quartiles,
+      aes(x = x, y = y, colour = ObsQuart),
+      shape = 16, size = 4
+    )+ 
+    
+    # Historical data as colored lines by quartile:
+    geom_textline(
+      aes(label = year, group = year, hjust = hjust, colour = factor(ObsQuart)),
+      alpha = 0.9,
+      show.legend = FALSE
+    ) +
+    
+    # Highlight current year as red (unchanged)
+    geom_labelline(
+      data = filter(
+        sproat_cn_with_quartiles, 
+        species == "CO", 
+        year == max(year)
+      ), 
+      aes(y = cum_count),
+      label = curr_year,
+      colour = "red",
+      hjust = 0.9,
+      vjust = 0.1,
+      linewidth = 1.25,
+      boxcolour = "white",
+      alpha = 0.75,
+      label.padding = unit(0.1, "lines"),
+      gap = TRUE,
+      text_smoothing = 60
+    ) +
+    
+    scale_color_manual(
+      name = "Observed Quartile",
+      values = quartile_colors
+    ) +
+    
+    scale_x_date(
+      breaks = "2 weeks", date_labels = "%d %b"
+    ) +
+    
+    scale_y_continuous(position = "right") +
+    coord_cartesian(
+      xlim = as.Date(
+        c(
+          paste0(curr_year, "-08-01"), 
+          paste0(curr_year, "-11-05")
+        )
+      ),
+      expand = FALSE
+    ) +
+    
+    labs(
+      x = NULL, 
+      y = "Cumulative Sproat Falls Coho escapement"
+    ) +
+    
+    theme(
+      axis.title.y.right = element_text(
+        margin = margin(l = 0.5, unit = "lines")
+      )
+    ) +
+    
+    #Manually enter the colours:
+    scale_color_manual(
+      name = "Observed Quartile",
+      values = quartile_colors,
+      na.translate = FALSE  # removes NA from legend
+    ) +
+    
+    #Add a legend:
+    guides(
+      colour = guide_legend(
+        title = "Observed Quartile",
+        override.aes = list(
+          shape = 16,     # circle
+          size = 4,
+          linetype = 0    # no line
+        )
+      )
+    )
+)
+
+
+
+# Save to the network folder
+ggsave(
+  plot = co_spaghetti_p_quart,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-PLOT_2025_CO_cum-esc-timing_quartiles",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
 
