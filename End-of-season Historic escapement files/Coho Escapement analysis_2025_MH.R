@@ -1498,22 +1498,40 @@ legend_quartiles <- tibble(
   y = 0
 )
 
-# F) Set current year
-curr_year <- max(sproat_cn$year, na.rm = TRUE)
 
-# G) Plot
+# Get the date corresponding to the xlim end
+label_x <- as.Date(paste0(curr_year, "-10-10"))
+
+# For each year, get the last cum_count before or on label_x
+label_data <- sproat_cn_with_quartiles %>%
+  filter(
+    between(year, curr_year - 11, curr_year - 1),
+    species == "CO",
+    julian < 310
+  ) %>%
+  group_by(year) %>%
+  filter(as.Date(julian, origin = paste0(curr_year - 1, "-12-31")) <= label_x) %>%
+  slice_max(order_by = julian, n = 1) %>%
+  ungroup() %>%
+  mutate(
+    x = label_x,
+    hjust = 1  # align label at the right edge
+  )
+
+
+# Plot
 co_spaghetti_p_quart <- sproat_cn_with_quartiles |> 
   filter(
     between(year, curr_year - 11, curr_year - 1),
     species == "CO",
     julian < 310
   ) |> 
-  group_by(year) |> 
-  mutate(hjust = runif(1, 0.8, 1)) |> 
   ggplot(
     aes(
       as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-      cum_count
+      cum_count,
+      colour = ObsQuart,
+      group = year
     )
   ) +
   
@@ -1525,37 +1543,36 @@ co_spaghetti_p_quart <- sproat_cn_with_quartiles |>
     inherit.aes = FALSE
   ) +
   
-  # Historical lines by ObsQuart
-  geom_textline(
-    aes(
-      label = year, 
-      group = year, 
-      hjust = hjust, 
-      colour = ObsQuart
-    ),
-    alpha = 0.9,
+  # Historical lines without labels
+  geom_line(alpha = 0.7) +
+  
+  # Labels at right edge for historical lines
+  geom_text(
+    data = label_data,
+    aes(x = x, y = cum_count, label = year, colour = ObsQuart, hjust = hjust),
+    inherit.aes = FALSE,
+    size = 3,
     show.legend = FALSE
   ) +
   
-  # Current year line
+  # Current year line with label
   geom_labelline(
-    data = filter(sproat_cn_with_quartiles, species == "CO", year == curr_year),
+    data = filter(sproat_cn_with_quartiles, species == "CO", year == curr_year) |> arrange(julian),
     aes(
       x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
       y = cum_count
     ),
     label = curr_year,
     colour = "red",
-    hjust = 0.9,
-    vjust = 0.1,
-    linewidth = 1.25,
+    hjust = 1,    # label at the end (right)
+    vjust = -7,    # adjust vertical position as needed
+    linewidth = 1.75,
     boxcolour = "white",
     alpha = 0.75,
     label.padding = unit(0.1, "lines"),
-    gap = TRUE,
     text_smoothing = 60,
     inherit.aes = FALSE
-  ) +
+  )+
   
   scale_color_manual(
     name = "Observed Quartile",
@@ -1570,7 +1587,7 @@ co_spaghetti_p_quart <- sproat_cn_with_quartiles |>
   scale_y_continuous(position = "right") +
   
   coord_cartesian(
-    xlim = as.Date(c(paste0(curr_year, "-08-01"), paste0(curr_year, "-11-05"))),
+    xlim = as.Date(c(paste0(curr_year, "-08-01"), paste0(curr_year, "-10-10"))),
     expand = FALSE
   ) +
   
