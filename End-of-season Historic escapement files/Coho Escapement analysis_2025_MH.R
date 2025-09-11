@@ -1094,7 +1094,7 @@ coho_marked_spaghetti_plot <- ggplot() +
   
   # Labels and theme:
   labs(
-    title = "Stamp River Coho Escapement – Historic by Quartile and 2025 in Red",
+    title = "Stamp River Marked Coho Escapement – Historic by Quartile and 2025 in Red",
     x = "Date (Month-Day)",
     y = "Cumulative Count"
   ) +
@@ -1122,6 +1122,23 @@ coho_marked_spaghetti_plot <- ggplot() +
 
 # Display plot
 print(coho_marked_spaghetti_plot)
+
+
+# Save to the network folder
+ggsave(
+  plot = coho_marked_spaghetti_plot,
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Escapement plot/",
+    "R-coho_marked_spaghetti_plot",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
 
 
 
