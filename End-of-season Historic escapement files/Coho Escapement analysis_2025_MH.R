@@ -1458,18 +1458,24 @@ RCH_Quartiles <- read_xlsx(
 
 #COLOURED ACCORDING TO QUARTILES:
 
-#A) Rename the columns:
-RCH_Quartiles <- RCH_Quartiles %>%
-  rename(year = `Return Year`)
+RCH_Quartiles <- read_xlsx("RbtObsQuart.xlsx", sheet = "Sheet1", na = "") %>%
+  rename(year = `Return Year`) %>%
+  mutate(year = as.integer(year))
 
-#B) Merge the quartiles with plotting data:
+# B) Ensure 'year' in main dataset is also integer
+sproat_cn <- sproat_cn %>%
+  mutate(year = as.integer(year))
+
+# C) Merge the quartile data
 sproat_cn_with_quartiles <- sproat_cn %>%
-  left_join(RCH_Quartiles, by = "year")
+  left_join(RCH_Quartiles, by = "year") %>%
+  mutate(
+    # Replace NA quartiles with "0" to allow fallback color
+    ObsQuart = replace_na(as.character(ObsQuart), "0")
+  )
 
-sproat_cn_with_quartiles |> 
-  filter(!is.na(ObsQuart))
+# D) Define colors for quartiles including fallback grey
 
-#C) Set the quartiles to specific colours:
 # quartile_colors <- c(
 #   "1" = "#1b9e77",  
 #   "2" = "#7570b3",
@@ -1481,115 +1487,117 @@ quartile_colors <- c(
   "4" = "darkgreen",  
   "3" = "#6DA544",
   "2" = "#D55E00",  
-  "1" = "#8B0000" 
+  "1" = "#8B0000",
+  "0" = "grey80"  # fallback for missing quartile
 )
 
+# E) Dummy data for legend points
 legend_quartiles <- tibble(
   ObsQuart = factor(1:4),
   x = as.Date("2000-08-01"),
   y = 0
 )
 
-# Summarise data and feed into plot
-(co_spaghetti_p_quart <- sproat_cn_with_quartiles |> 
-    filter(
-      between(year, max(year) - 11, max(year) -1),
-      species == "CO",
-      julian < 310
-    ) |> 
-    group_by(year) |> 
-    mutate(hjust = runif(1, 0.8, 1)) |> 
-    ggplot(
-      aes(
-        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-        cum_count
-      )
-    ) +
-    
-    geom_point(
-      data = legend_quartiles,
-      aes(x = x, y = y, colour = ObsQuart),
-      shape = 16, size = 4
-    )+ 
-    
-    # Historical data as colored lines by quartile:
-    geom_textline(
-      aes(label = year, group = year, hjust = hjust, colour = factor(ObsQuart)),
-      alpha = 0.9,
-      show.legend = FALSE
-    ) +
-    
-    # Highlight current year as red (unchanged)
-    geom_labelline(
-      data = filter(
-        sproat_cn_with_quartiles, 
-        species == "CO", 
-        year == max(year)
-      ), 
-      aes(y = cum_count),
-      label = curr_year,
-      colour = "red",
-      hjust = 0.9,
-      vjust = 0.1,
-      linewidth = 1.25,
-      boxcolour = "white",
-      alpha = 0.75,
-      label.padding = unit(0.1, "lines"),
-      gap = TRUE,
-      text_smoothing = 60
-    ) +
-    
-    scale_color_manual(
-      name = "Observed Quartile",
-      values = quartile_colors
-    ) +
-    
-    scale_x_date(
-      breaks = "2 weeks", date_labels = "%d %b"
-    ) +
-    
-    scale_y_continuous(position = "right") +
-    coord_cartesian(
-      xlim = as.Date(
-        c(
-          paste0(curr_year, "-08-01"), 
-          paste0(curr_year, "-11-05")
-        )
-      ),
-      expand = FALSE
-    ) +
-    
-    labs(
-      x = NULL, 
-      y = "Cumulative Sproat Falls Coho escapement"
-    ) +
-    
-    theme(
-      axis.title.y.right = element_text(
-        margin = margin(l = 0.5, unit = "lines")
-      )
-    ) +
-    
-    #Manually enter the colours:
-    scale_color_manual(
-      name = "Observed Quartile",
-      values = quartile_colors,
-      na.translate = FALSE  # removes NA from legend
-    ) +
-    
-    #Add a legend:
-    guides(
-      colour = guide_legend(
-        title = "Observed Quartile",
-        override.aes = list(
-          shape = 16,     # circle
-          size = 4,
-          linetype = 0    # no line
-        )
+# F) Set current year
+curr_year <- max(sproat_cn$year, na.rm = TRUE)
+
+# G) Plot
+co_spaghetti_p_quart <- sproat_cn_with_quartiles |> 
+  filter(
+    between(year, curr_year - 11, curr_year - 1),
+    species == "CO",
+    julian < 310
+  ) |> 
+  group_by(year) |> 
+  mutate(hjust = runif(1, 0.8, 1)) |> 
+  ggplot(
+    aes(
+      as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+      cum_count
+    )
+  ) +
+  
+  # Legend color dots
+  geom_point(
+    data = legend_quartiles,
+    aes(x = x, y = y, colour = ObsQuart),
+    shape = 16, size = 4,
+    inherit.aes = FALSE
+  ) +
+  
+  # Historical lines by ObsQuart
+  geom_textline(
+    aes(
+      label = year, 
+      group = year, 
+      hjust = hjust, 
+      colour = ObsQuart
+    ),
+    alpha = 0.9,
+    show.legend = FALSE
+  ) +
+  
+  # Current year line
+  geom_labelline(
+    data = filter(sproat_cn_with_quartiles, species == "CO", year == curr_year),
+    aes(
+      x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+      y = cum_count
+    ),
+    label = curr_year,
+    colour = "red",
+    hjust = 0.9,
+    vjust = 0.1,
+    linewidth = 1.25,
+    boxcolour = "white",
+    alpha = 0.75,
+    label.padding = unit(0.1, "lines"),
+    gap = TRUE,
+    text_smoothing = 60,
+    inherit.aes = FALSE
+  ) +
+  
+  scale_color_manual(
+    name = "Observed Quartile",
+    values = quartile_colors,
+    na.translate = FALSE
+  ) +
+  
+  scale_x_date(
+    breaks = "2 weeks", date_labels = "%d %b"
+  ) +
+  
+  scale_y_continuous(position = "right") +
+  
+  coord_cartesian(
+    xlim = as.Date(c(paste0(curr_year, "-08-01"), paste0(curr_year, "-11-05"))),
+    expand = FALSE
+  ) +
+  
+  labs(
+    x = NULL, 
+    y = "Cumulative Sproat Falls Coho escapement"
+  ) +
+  
+  theme(
+    axis.title.y.right = element_text(
+      margin = margin(l = 0.5, unit = "lines")
+    )
+  ) +
+  
+  guides(
+    colour = guide_legend(
+      title = "Observed Quartile",
+      override.aes = list(
+        shape = 16,
+        size = 4,
+        linetype = 0
       )
     )
-)
+  )
 
+# H) Display plot
+print(co_spaghetti_p_quart)
 
 
 # Save to the network folder
