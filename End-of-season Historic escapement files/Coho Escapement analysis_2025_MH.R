@@ -860,8 +860,8 @@ historic_cumulative_quart <- historic_cumulative %>%
 
 # Define quartile colors
 quartile_colors <- c(
-  "4" = "#6DA544",    # Light green
-  "3" = "darkgreen",
+  "4" = "darkgreen",    # Dark green
+  "3" = "#6DA544",
   "2" = "#D55E00",    # Orange
   "1" = "#8B0000"     # Dark red
 )
@@ -1013,8 +1013,8 @@ historic_cumulative_quart <- historic_cumulative %>%
 
 # Define quartile colors
 quartile_colors <- c(
-  "4" = "#6DA544",    # Light green
-  "3" = "darkgreen",
+  "4" = "darkgreen",    # Darkt green
+  "3" = "#6DA544",
   "2" = "#D55E00",    # Orange
   "1" = "#8B0000"     # Dark red
 )
@@ -1228,8 +1228,8 @@ stamp_cn_with_quartiles |>
 # )
 
 quartile_colors <- c(
-  "4" = "#6DA544",  
-  "3" = "darkgreen",
+  "4" = "darkgreen",  
+  "3" = "#6DA544",
   "2" = "#D55E00",  
   "1" = "#8B0000" 
 )
@@ -1461,8 +1461,8 @@ sproat_cn_with_quartiles |>
 # )
 
 quartile_colors <- c(
-  "4" = "#6DA544",  
-  "3" = "darkgreen",
+  "4" = "darkgreen",  
+  "3" = "#6DA544",
   "2" = "#D55E00",  
   "1" = "#8B0000" 
 )
@@ -1710,8 +1710,8 @@ somass_cn_with_quartiles |>
 # )
 
 quartile_colors <- c(
-  "4" = "#6DA544",  
-  "3" = "darkgreen",
+  "4" = "darkgreen",  
+  "3" = "#6DA544",
   "2" = "#D55E00",  
   "1" = "#8B0000" 
 )
