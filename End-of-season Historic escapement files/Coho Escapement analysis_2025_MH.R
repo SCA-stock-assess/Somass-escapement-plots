@@ -1624,7 +1624,7 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2025_CO_cum-esc-timing_quartiles",
+    "R-PLOT_2025_CO_cum-esc-timing-SPROAT_quartiles",
     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
     ".png"
   ),
