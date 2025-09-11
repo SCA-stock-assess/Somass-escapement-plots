@@ -1278,7 +1278,7 @@ legend_quartiles <- tibble(
       ), 
       aes(y = cum_count),
       label = curr_year,
-      colour = "red",
+      colour = "black",
       hjust = 0.9,
       vjust = 0.1,
       linewidth = 1.25,
