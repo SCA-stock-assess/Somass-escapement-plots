@@ -426,28 +426,27 @@ current_data <- read_xlsx(
 
 
 
-# #Sproat - currently does not track marked vs unmarked fish (just assumed wild)
-# current_data <- read_xlsx(
-#   "Daily Totals by Age 2025.xlsx",
-#   sheet = " Sproat CN&CO",
-#   na = ""
-# ) %>%
-#   #Only select the columns we are interested in:
-#   select(Date, "Co  Mark", "Co  NoMark") %>%
-#   mutate(
-#     year = curr_year,
-#     # normalize to fixed year:
-#     MonthDay = as.Date(format(Date, "2000-%m-%d")),  
-#     Co_Mark = `Co  Mark`,
-#     Co_NoMark = `Co  NoMark`
-#   ) %>%
-#   # ensure dates are in order for cumulative sums
-#   arrange(Date) %>%
-#   #we want this data as a cumulative sum:
-#   mutate(
-#     Co_Mark_Cumulative = cumsum(replace_na(Co_Mark, 0)),
-#     Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
-#   )
+ #Sproat - currently does not track marked vs unmarked fish (just assumed wild)
+##  "Daily Totals by Age 2025.xlsx",
+ #  sheet = " Sproat CN&CO",
+ #  na = ""
+ #) %>%
+   #Only select the columns we are interested in:
+ #  select(Date, "Co  Mark", "Co  NoMark") %>%
+ #  mutate(
+  #   year = curr_year,
+     # normalize to fixed year:
+  #   MonthDay = as.Date(format(Date, "2000-%m-%d")),  
+   # Co_Mark = `Co  Mark`,
+   #  Co_NoMark = `Co  NoMark`
+ #  ) %>%
+   # ensure dates are in order for cumulative sums
+ #  arrange(Date) %>%
+   #we want this data as a cumulative sum:
+ # mutate(
+   #  Co_Mark_Cumulative = cumsum(replace_na(Co_Mark, 0)),
+  #   Co_NoMark_Cumulative = cumsum(replace_na(Co_NoMark, 0))
+  # )
 
 
 ########################## Apply Proportion of unmarked to current year Coho ################################
@@ -512,12 +511,12 @@ current_data <- read_xlsx(
 #   )
 
 
-########################## PPLOT THE MARKED VS UNMARKED ################################
+########################## PLOT THE MARKED VS UNMARKED ################################
 
 #Plot the marked vs unmarked for this year, AND the past few years:
 
 #A) Select which years you are interested in: (if you want them to be on the plot)
-selected_years <- c(2024, 2023, 2022)
+selected_years <- c(2024, 2023, 2022, 2021, 2020)
 
 
 co_years_long <- historic_data_2015_2024 %>%
@@ -1200,6 +1199,7 @@ RCH_Quartiles <- read_xlsx(
   scale_y_continuous(position = "right") + # Put y axis on right to show count values at the end of the time series
   guides(colour = "none") +
   coord_cartesian(
+    ylim = c(0,40000),
     xlim = as.Date(
       c(
         paste0(curr_year, "-08-01"), 
@@ -1257,18 +1257,19 @@ legend_quartiles <- tibble(
   y = 0
 )
 
-# Summarise data and feed into plot
-(co_spaghetti_p_quart <- stamp_cn_with_quartiles |> 
-    filter(
-      between(year, max(year) - 11, max(year) -1),
-      species == "CO",
-      julian < 310
-    ) |> 
-    group_by(year) |> 
-    mutate(hjust = runif(1, 0.8, 1)) |> 
-    ggplot(
-      aes(
-        as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+# Summarise data and save it
+plot_data <- stamp_cn_with_quartiles |>
+  filter(
+    between(year, max(year) - 11, max(year) - 1),
+    species == "CO",
+    julian < 310
+  ) |>
+  group_by(year) |>
+  mutate(hjust = runif(1, 0.8, 1))
+
+
+
+ ggplot(plot_data,aes(as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
         cum_count
       )
     ) +
@@ -1286,7 +1287,7 @@ legend_quartiles <- tibble(
       show.legend = FALSE
     ) +
     
-    # Highlight current year as red (unchanged)
+    # Highlight current year as black
     geom_labelline(
       data = filter(
         stamp_cn_with_quartiles, 
@@ -1315,7 +1316,9 @@ legend_quartiles <- tibble(
       breaks = "2 weeks", date_labels = "%d %b"
     ) +
     
-    scale_y_continuous(position = "right") +
+    scale_y_continuous(position = "right",
+                       limits = c(0,max(plot_data$cum_count,na.rm = TRUE)* 1.05),
+                       expand = expansion(mult = c(0,0.05))) +
     coord_cartesian(
       xlim = as.Date(
         c(
@@ -1355,7 +1358,7 @@ legend_quartiles <- tibble(
         )
       )
     )
-)
+
 
 
 
@@ -1391,7 +1394,7 @@ RCH_Quartiles <- read_xlsx(
 (co_spaghetti_p <- sproat_cn |> 
     # Compare to the last 10 years
     filter(
-      between(year, max(year) - 11, max(year) -1),
+      between(year, max(year, na.rm = TRUE) - 11, max(year, na.rm = TRUE) -1),
       species == "CO",
       julian < 310
     ) |> 
@@ -1405,7 +1408,13 @@ RCH_Quartiles <- read_xlsx(
     ) +
     # Historical data as thin grey lines
     geom_textline(
-      aes(label = year, group = year, hjust = hjust),
+      aes(
+        x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+        y = cum_count,                # <-- ADDED HIS
+        label = year,
+        group = year,
+        hjust = hjust
+      ),
       colour = "grey50",
       alpha = 0.7
     ) +
@@ -1414,11 +1423,31 @@ RCH_Quartiles <- read_xlsx(
       data = filter(
         sproat_cn, 
         species == "CO", 
+        year == max(year)),
+    aes(y = cum_count),
+    label = curr_year,
+    colour = "red",
+    hjust = 0.9,
+    vjust = 0.1,
+    linewidth = 1.25,
+    boxcolour = "white",
+    alpha = 0.75,
+    label.padding = unit(0.1, "lines"),
+    gap = TRUE,
+    text_smoothing = 60
+    ) +
+    geom_labelline(
+      data = filter(
+        stamp_cn, 
+        species == "CO", 
         year == max(year)
       ), 
-      aes(y = cum_count),
+      aes(
+        x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+        y = cum_count
+      ),
       label = curr_year,
-      colour = "red",
+      colour = "blue",
       hjust = 0.9,
       vjust = 0.1,
       linewidth = 1.25,
@@ -1434,6 +1463,7 @@ RCH_Quartiles <- read_xlsx(
     scale_y_continuous(position = "right") + # Put y axis on right to show count values at the end of the time series
     guides(colour = "none") +
     coord_cartesian(
+      ylim=c(0, 12000),
       xlim = as.Date(
         c(
           paste0(curr_year, "-08-01"), 
@@ -1474,21 +1504,12 @@ sproat_cn_with_quartiles <- sproat_cn %>%
     ObsQuart = replace_na(as.character(ObsQuart), "0")
   )
 
-# D) Define colors for quartiles including fallback grey
-
-# quartile_colors <- c(
-#   "1" = "#1b9e77",  
-#   "2" = "#7570b3",
-#   "3" = "#e7298a",  
-#   "4" = "#d95f02" 
-# )
-
 quartile_colors <- c(
   "4" = "darkgreen",  
   "3" = "#6DA544",
   "2" = "#D55E00",  
   "1" = "#8B0000",
-  "0" = "grey80"  # fallback for missing quartile
+ "0" = "grey80"  # fallback for missing quartile
 )
 
 # E) Dummy data for legend points
@@ -1577,7 +1598,7 @@ co_spaghetti_p_quart <- sproat_cn_with_quartiles |>
   scale_color_manual(
     name = "Observed Quartile",
     values = quartile_colors,
-    na.translate = FALSE
+    breaks = c("4","3","2","1")   # explicitly list only the quartiles you want
   ) +
   
   scale_x_date(
@@ -1607,8 +1628,8 @@ co_spaghetti_p_quart <- sproat_cn_with_quartiles |>
       title = "Observed Quartile",
       override.aes = list(
         shape = 16,
-        size = 4,
-        linetype = 0
+        size = 6,
+        linetype = 1
       )
     )
   )
@@ -1665,7 +1686,7 @@ RCH_Quartiles <- read_xlsx(
 (co_spaghetti_p <- somass_cn |> 
     # Compare to the last 10 years
     filter(
-      between(year, max(year) - 11, max(year) -1),
+      between(year, max(year, na.rm = TRUE) - 11, max(year,na.rm=TRUE) -1),
       species == "CO",
       julian < 310
     ) |> 
@@ -1674,7 +1695,7 @@ RCH_Quartiles <- read_xlsx(
     ggplot(
       aes(
         as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-        cum_count
+        cum_count,
       )
     ) +
     # Historical data as thin grey lines
