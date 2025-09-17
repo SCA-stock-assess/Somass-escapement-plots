@@ -72,7 +72,7 @@ crest_pull <- crest_pull %>%
       coalesce(coho_released_sublegalsize, 0)
   )
 
-#Catch_C: ere I am considering "Catch" what was caught but NOT what was released
+#Catch_C: Here I am considering "Catch" what was caught but NOT what was released
 crest_pull <- crest_pull %>%
   mutate(
     Catch_K = coalesce(coho_all_kept, 0) #note this ",0" means if it is NA make it a zero instead
@@ -250,7 +250,7 @@ CPUE_LM <- function(
   # Step 1: Filter CPUE data by month, year range, and optional sub_area:
   filtered_cpue <- CPUE_data %>%
     filter(month %in% Month,
-           as.numeric(year) >= 2000,
+           as.numeric(year) >= 2015,
            as.numeric(year) < curr_year) %>%
     mutate(year = as.numeric(year))
   
@@ -372,7 +372,7 @@ CPUE_LM(
   Month = "08",
   cpue_metric = "CPUE_KR",
   Sub_area = "23A",
-  # remove_years = c(2000:2010)
+  remove_years = c(2000:2014)
   # remove_years = c(2000, 2013)
 )
 
@@ -382,8 +382,8 @@ CPUE_LM(
   escapement_data = coho_escapement_summary,
   Month = "08",
   cpue_metric = "CPUE_KR",
-  Sub_area = "23B"
-  # remove_years = c(2000:2020) #regulations similar to 2025 in 2021-2024
+  Sub_area = "23B",
+  remove_years = c(2000:2014) #regulations similar to 2025 in 2021-2024
 )
 
 #For August only, using kept AND released fish:#0.189
@@ -391,8 +391,8 @@ CPUE_LM(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
   Month = "08",
-  cpue_metric = "CPUE_KR"
-  # remove_years = c(2001, 2000, 2013)
+  cpue_metric = "CPUE_KR",
+  remove_years = c(2000:2014)
 )
 
 
@@ -417,8 +417,8 @@ CPUE_LM(
   escapement_data = coho_escapement_summary,
   Month = "09",
   cpue_metric = "CPUE_KR",
-  Sub_area = "23A"
-  # remove_years = c(2001, 2013)
+  Sub_area = "23A",
+  remove_years = c(2000:2014)
 )
 
 #For September only separated into sub-area (23B), using kept AND released fish:#0.315
@@ -427,8 +427,8 @@ CPUE_LM(
   escapement_data = coho_escapement_summary,
   Month = "09",
   cpue_metric = "CPUE_KR",
-  Sub_area = "23B"
-  # remove_years = c(2000:2020) #regulations similar to 2025 in 2021-2024
+  Sub_area = "23B",
+  remove_years = c(2000:2014) #regulations similar to 2025 in 2021-2024
   )
 
 
@@ -437,8 +437,8 @@ CPUE_LM(
   CPUE_data = CPUE_total_monthly,
   escapement_data = coho_escapement_summary,
   Month = "09",
-  cpue_metric = "CPUE_KR"
-  # remove_years = c(2001, 2013)
+  cpue_metric = "CPUE_KR",
+  remove_years = c(2000:2014)
 )
 
 # # #For September only, using kept fish only: #0.296
@@ -462,8 +462,8 @@ CPUE_LM(
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
   cpue_metric = "CPUE_KR",
-  Sub_area = "23A"
-  # remove_years = c(2001, 2013)
+  Sub_area = "23A",
+  remove_years = c(2000:2014)
 )
 
 #For August & September  separated into sub-area (23B), using kept AND released fish: #0.279
@@ -762,8 +762,8 @@ CPUE_LM_Quartiles(
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
   cpue_metric = "CPUE_KR",
-  years_to_use = Quartile_1
-  # remove_years = c(2001, 2013)
+  years_to_use = Quartile_1,
+  remove_years = c(2000: 2014)
 )
 
 #Quartile: 2 #0.08
@@ -772,8 +772,8 @@ CPUE_LM_Quartiles(
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
   cpue_metric = "CPUE_KR",
-  years_to_use = Quartile_2
-  # remove_years = c(2001, 2013)
+  years_to_use = Quartile_2,
+  remove_years = c(2000: 2014)
 )
 
 
@@ -783,8 +783,8 @@ CPUE_LM_Quartiles(
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
   cpue_metric = "CPUE_KR",
-  years_to_use = Quartile_3
-  # remove_years = c(2001, 2013)
+  years_to_use = Quartile_3,
+  remove_years = c(2000: 2014)
 )
 
 
@@ -794,10 +794,276 @@ CPUE_LM_Quartiles(
   escapement_data = coho_escapement_summary,
   Month = c("09","08"),
   cpue_metric = "CPUE_KR",
-  years_to_use = Quartile_4
-  # remove_years = c(2001, 2013)
+  years_to_use = Quartile_4,
+  #remove_years = c(2000: 2014)
+)
+
+##### Exploring relationship between recreational CPUE and marine survival quartiles #########
+#suggested by Christie Morrison on 9/16/2025 -> VP
+#The code below bypasses MH codes and used the updated SC Creel data avialable on 
+# salmon drive: FMCR_Fishery_Monitoring_Catch_Reporting\Recreational_CM\Catch_Data
+
+
+CrestCatch <- read_xlsx(
+  "CohoCPUESep19VP.xlsx",
+  sheet = "SC Creel",
+  na = ""
+) 
+#filtering for subarea, years, months, plus coho catch and effort
+AlberniCohoCrestData <- CrestCatch |> 
+  filter(CREEL_SUB_AREA %in% c("23A","23B"),
+         YEAR >= 2015,
+         MONTH %in% c("August", "September"),
+         SPECIES_CODE %in% c("115", "B_TRIPS")
+      )
+
+# Step 1: Sum Coho catch and released for each sub_area, year and month
+cohoEst <- AlberniCohoCrestData |> 
+  filter(
+    SPECIES_CODE == "115",          # only Coho
+    DISPOSITION != "Effort"          # exclude Effort rows
+  ) %>%
+  group_by(YEAR, MONTH, CREEL_SUB_AREA) %>%
+  summarise(
+    CohoKR = sum(ESTIMATE, na.rm = TRUE),
+    .groups = "drop"
+  )
+# Step 2: Summarise BO_TRIPS
+trips_summary <- AlberniCohoCrestData %>%
+  filter(SPECIES_CODE == "B_TRIPS") %>%
+  group_by(YEAR, MONTH, CREEL_SUB_AREA) %>%
+  summarise(
+    BoatTrips = sum(ESTIMATE, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Step 3: Join them together and calculate CPUE
+CatchEffortData <- cohoEst %>%
+  left_join(trips_summary, by = c("YEAR", "MONTH", "CREEL_SUB_AREA")) |> 
+  mutate(CPUE=CohoKR/BoatTrips)
+
+CatchEffortSummary <- CatchEffortData %>%
+  group_by(YEAR) %>%
+  summarise(AugSep_CPUE = sum(CPUE, na.rm = TRUE)) %>%
+  arrange(YEAR)
+
+
+
+#step 4: Load in the quartile data
+ObsQuart <- read_xlsx("RbtObsQuart.xlsx")
+ObsQuart<- head(ObsQuart, -2)
+
+
+ObsQuartRecentOnly <- ObsQuart %>%
+  filter(`Return Year` %in% 2015:2024) %>%
+  rename(YEAR = `Return Year`, ObservedQuart = ObsQuart) %>%
+  dplyr::select(YEAR, ObservedQuart)
+
+#Join the two datasets of MS quartiles and Rec CPUE
+CombinedCPUEQuartile <- CatchEffortSummary %>%
+  left_join(ObsQuartRecentOnly, by = "YEAR")
+
+CombinedCPUEQuartile<- CombinedCPUEQuartile |> 
+filter(YEAR != "2025")
+
+#Relationship between CPUE and Quartiles
+plot(CombinedCPUEQuartile$ObservedQuart~CombinedCPUEQuartile$AugSep_CPUE)
+
+#step 5: Load historical escapement data from August onward
+stamp_cn <- read_xlsx(
+  "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/TERMINAL_AREAS/TERMRBT/Stampfalls.xlsx",
+  sheet = "STAMP Escapement Data",
+  skip = 28,
+  na = ""
+) |> 
+  select(1:14) |> 
+  pivot_longer(
+    cols = CO:UNK,
+    names_to = "species",
+    values_to = "count"
+  ) |> 
+  rename_with(tolower) |> 
+  mutate(
+    date = as.Date(date),
+    count = if_else(year < max(year) & is.na(count), 0, count)
+  ) |> 
+  group_by(year, species) |> 
+  arrange(date, .by_group = TRUE) |> 
+  # Get cumulative counts for each year and cumulative proportions
+  mutate(
+    cum_count = cumsum(count),
+    ann_ttl = sum(count, na.rm = TRUE),
+    cum_prop = cum_count/ann_ttl,
+    julian = date |> format("%j") |> as.numeric()
+  ) |> 
+  ungroup()
+
+
+
+########################## CLEAN UP THE ESCAPEMENT #############################
+#we want to get the total escapement of Coho only for August, September and October, as well as
+#the final escapement for the year:
+
+coho_escapement_summary <- stamp_cn %>%
+  filter(species == "CO") %>%
+  mutate(month = month(date)) %>%
+  group_by(year) %>%
+  summarise(
+    coho_august = sum(count[month == 8], na.rm = TRUE),
+    coho_sept   = sum(count[month == 9], na.rm = TRUE),
+    coho_oct    = sum(count[month == 10], na.rm = TRUE),
+    final_escapement = max(ann_ttl, na.rm = TRUE),
+    .groups = "drop"
+  )
+#filter out the older years
+coho_escapement_summary <- coho_escapement_summary |> 
+  filter(`year` %in% c(2015:2024))
+#bring in the historical mark rate calculated by MH
+AvgMarkRate<- read_csv("MonthlyCohoMarkRateHistorical.csv") |> 
+filter(Month %in% c(8, 9, 10)) %>%
+  select(MonthLabel, prop_marked, prop_unmarked) #Mark rate for aug, sep and Oct
+
+
+#Pivot escapement to long format for Aug/Sep/Oct
+escapement_long <- coho_escapement_summary %>%
+  pivot_longer(
+    cols = starts_with("coho_"),
+    names_to = "MonthLabel",
+    values_to = "count"
+  ) %>%
+  mutate(
+    MonthLabel = sub("coho_", "", MonthLabel),   # remove prefix
+    MonthLabel = tools::toTitleCase(MonthLabel)  # "August", "Sept", "Oct"
+  )
+
+# Join proportions to escapement
+escapement_long <- escapement_long %>%
+  mutate(
+    prop_marked = case_when(
+      MonthLabel == "August" ~ 0.2010347,
+      MonthLabel == "Sept" ~ 0.4225110,
+      MonthLabel == "Oct" ~ 0.2437434,
+      TRUE ~ 0  # fallback, should never be used if data is clean
+    ),
+    prop_unmarked = case_when(
+      MonthLabel == "August" ~ 0.7989653,
+      MonthLabel == "Sept" ~ 0.5774890,
+      MonthLabel == "Oct" ~ 0.7562566,
+      TRUE ~ 0
+    )
+  ) |>  #calculate marked and unamarked coho counts based on expected proportions
+  mutate(MarkedCoho=count * prop_marked, UnmarkedCoho= count * prop_unmarked)
+#Bring in the observed quartiles and attach it escapement dataframe
+# Step 1: Rename 'Return Year' to 'year' for joining
+ObsQuartRecent <- ObsQuartRecent %>%
+  rename(year = `Return Year`) %>%
+  select(year, ObsQuart)
+
+# Step 2: Join with escapement_long
+escapement_long <- escapement_long %>%
+  left_join(ObsQuartRecent, by = "year")
+
+###Now test the relationship: how unmarked Coho escapement varies across observation quartiles for each month
+# changing the quartiles to Ordinal
+escapement_long <- escapement_long %>%
+  mutate(ObsQuart = factor(ObsQuart, ordered = TRUE))
+
+#faceted Strip plot
+FacetStripPlot<- ggplot(escapement_long, aes(x = UnmarkedCoho, y = ObsQuart)) +
+  geom_point(color = "steelblue") +
+  facet_wrap(~ MonthLabel, nrow = 1) +
+  labs(
+    title = "Marine survival Quartile vs. Unmarked Coho Escapement by Month 2015-2024",
+    x = "Unmarked Coho Escapement",
+    y = ""
+  ) +
+  theme_minimal()
+#### Save to the network folder
+ggsave(
+  plot = FacetStripPlot, 
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Exploratory/Coho/",
+    "CohoEscObsQuart",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
+)
+
+#only sept
+SepOnlyPlot<- escapement_long %>%
+  filter(MonthLabel == "Sept") %>%
+  mutate(ObsQuart = factor(ObsQuart, ordered = TRUE)) %>%
+  ggplot(aes(x = UnmarkedCoho, y = ObsQuart)) +
+  geom_jitter(height = 0.2, alpha = 0.7, color = "steelblue", size = 3) +
+  labs(
+    title = "Observation Quartile vs. Unmarked Coho Escapement (September) 2015-2024",
+    x = "Unmarked Coho Escapement",
+    y = ""
+  ) +
+  theme_minimal()
+
+ggsave(
+  plot = SepOnlyPlot, 
+  filename = paste0(
+    "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
+    curr_year,
+    "/A23/Exploratory/Coho/",
+    "CohoEscObsQuartSepOnly",
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    ".png"
+  ),
+  height = 4.5,
+  width = 8,
+  units = "in"
 )
 
 
+#Multiniminal logistic regression to test the significance
+library(nnet)
+
+# Step 1: Filter for September
+sept_data <- escapement_long %>%
+  filter(MonthLabel == "Sept") %>%
+  mutate(
+    UnmarkedCoho_log = log1p(UnmarkedCoho),        # Step 2: Transform predictor
+    ObsQuart = factor(ObsQuart)                    # Treat quartile as nominal
+  )
+
+# Step 3: Fit multinomial logistic regression
+model_multinom <- multinom(ObsQuart ~ UnmarkedCoho_log, data = sept_data)
+
+# Step 4: Compute p-values: This code converts the z-score into a p-value using the normal distribution.
+#The pnorm() function gives the probability of observing a value that extreme by chance.
+
+z <- summary(model_multinom)$coefficients / summary(model_multinom)$standard.errors
+p_values <- 2 * (1 - pnorm(abs(z))) #Multiplying by 2 gives a two-tailed test (testing for both positive and negative effects).
+round(p_values, 4)
+
+# Step 5: Predict quartile for a new escapement value (e.g., 8000)
+new_value <- data.frame(UnmarkedCoho_log = log1p(8000))
+predicted_quartile <- predict(model_multinom, newdata = new_value)
+predicted_quartile
+#If we want predicted probabilities instead of just the most likely quartile:
+predict(model_multinom, newdata = new_value, type = "probs")
+###### What if we use raw escapement instead of transorming
+
+model_multinom_raw <- multinom(ObsQuart ~ UnmarkedCoho, data = sept_data)
+
+#Compute p-values manually
+z_raw <- summary(model_multinom_raw)$coefficients / summary(model_multinom_raw)$standard.errors
+p_values_raw <- 2 * (1 - pnorm(abs(z_raw)))
+round(p_values_raw, 4)
 
 
+summary(model_multinom_raw)$coefficients
+
+ggplot(sept_data, aes(x = UnmarkedCoho, y = ObsQuart)) +
+  geom_point( size = 3, color = "darkred") +
+  labs(title = "Visual Check for Separation in September Data")
+
+predict(model_multinom_raw, newdata = data.frame(UnmarkedCoho = 6000), type = "probs")
