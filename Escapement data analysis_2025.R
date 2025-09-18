@@ -1755,72 +1755,7 @@ ggsave(
 # Coho curves -------------------------------------------------------------
 
 
-# Summarise data and feed into plot
-(co_spaghetti_p <- stamp_cn |> 
-  # Compare to the last 10 years
-  filter(
-    between(year, max(year) - 11, max(year) -1),
-    species == "CO",
-    julian < 310
-  ) |> 
-  group_by(year) |> 
-  mutate(hjust = runif(1, 0.8, 1)) |> # Add random hjust values to reduce overlap between labels in geom_textline
-  ggplot(
-    aes(
-      as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-      cum_count
-    )
-  ) +
-  # Historical data as thin grey lines
-  geom_textline(
-    aes(label = year, group = year, hjust = hjust),
-    colour = "grey50",
-    alpha = 0.7
-  ) +
-  # 2023 as thick red line with semi-transparent label
-  geom_labelline(
-    data = filter(
-      stamp_cn, 
-      species == "CO", 
-      year == max(year)
-    ), 
-    aes(y = cum_count),
-    label = curr_year,
-    colour = "red",
-    hjust = 0.9,
-    vjust = 0.1,
-    linewidth = 1.25,
-    boxcolour = "white",
-    alpha = 0.75,
-    label.padding = unit(0.1, "lines"),
-    gap = TRUE,
-    text_smoothing = 60
-  ) +
-  scale_x_date(
-    breaks = "2 weeks", date_labels = "%d %b"
-  ) +
-  scale_y_continuous(position = "right") + # Put y axis on right to show count values at the end of the time series
-  guides(colour = "none") +
-  coord_cartesian(
-    xlim = as.Date(
-      c(
-        paste0(curr_year, "-08-01"), 
-        paste0(curr_year, "-11-05")
-      )
-    ),
-    expand = FALSE
-  ) +
-  labs(
-    x = NULL, 
-    y = "Cumulative Stamp Falls Coho escapement"
-  ) +
-  theme(
-    axis.title.y.right = element_text( # Increase y-axis title margin
-      margin = margin(l = 0.5, unit = "lines")
-    )
-  ) 
-)
-#### Exact same plot with Y axis adjusted to prevent cutting off- Delete above plots once everyone happy with this one_VP?
+#### Exact same plot as previous version with Y axis adjusted to prevent cutting off- Delete above plots once everyone happy with this one_VP?
 # Define filtered_data outside the pipeline
 filtered_data <- stamp_cn |> 
   filter(

@@ -516,6 +516,7 @@ current_data <- read_xlsx(
 #Plot the marked vs unmarked for this year, AND the past few years:
 
 #A) Select which years you are interested in: (if you want them to be on the plot)
+#not using them in the bulletin
 selected_years <- c(2024, 2023, 2022, 2021, 2020)
 
 
@@ -906,7 +907,7 @@ coho_unmarked_spaghetti_plot <- ggplot() +
     #Look only at the unmarked coho (wild):
     aes(x = MonthDay, y = Co_NoMark_Cumulative),
     label = curr_year,
-    colour = "red",
+    colour = "black",
     linewidth = 1.5,
     boxcolour = "white",
     alpha = 0.9,
@@ -940,7 +941,7 @@ coho_unmarked_spaghetti_plot <- ggplot() +
   
   # Labels and theme:
   labs(
-    title = "Stamp River Unmarked Coho Escapement – Historic by Quartile and 2025 in Red",
+    title = "Stamp River Unmarked Coho Historic Escapement by Marine survival Quartile",
     x = "Date (Month-Day)",
     y = "Cumulative Count"
   ) +
@@ -1059,7 +1060,7 @@ coho_marked_spaghetti_plot <- ggplot() +
     #Look only at the ma coho (hatchery):
     aes(x = MonthDay, y = Co_Mark_Cumulative),
     label = curr_year,
-    colour = "red",
+    colour = "black",
     linewidth = 1.5,
     boxcolour = "white",
     alpha = 0.9,
@@ -1093,7 +1094,7 @@ coho_marked_spaghetti_plot <- ggplot() +
   
   # Labels and theme:
   labs(
-    title = "Stamp River Marked Coho Escapement – Historic by Quartile and 2025 in Red",
+    title = "Stamp River Marked Coho Historic Escapement by Marine survival Quartile",
     x = "Date (Month-Day)",
     y = "Cumulative Count"
   ) +
@@ -1236,14 +1237,6 @@ stamp_cn_with_quartiles <- stamp_cn %>%
 stamp_cn_with_quartiles |> 
   filter(!is.na(ObsQuart))
 
-#C) Set the quartiles to specific colours:
-# quartile_colors <- c(
-#   "1" = "#1b9e77",  
-#   "2" = "#7570b3",
-#   "3" = "#e7298a",  
-#   "4" = "#d95f02" 
-# )
-
 quartile_colors <- c(
   "4" = "darkgreen",  
   "3" = "#6DA544",
@@ -1269,7 +1262,7 @@ plot_data <- stamp_cn_with_quartiles |>
 
 
 
- ggplot(plot_data,aes(as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
+co_spaghetti_p_quart<- ggplot(plot_data,aes(as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
         cum_count
       )
     ) +
@@ -1584,7 +1577,7 @@ co_spaghetti_p_quart <- sproat_cn_with_quartiles |>
       y = cum_count
     ),
     label = curr_year,
-    colour = "red",
+    colour = "black",
     hjust = 1,    # label at the end (right)
     vjust = -7,    # adjust vertical position as needed
     linewidth = 1.75,
