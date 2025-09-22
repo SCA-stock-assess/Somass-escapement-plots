@@ -1243,7 +1243,13 @@ quartile_colors <- c(
   "2" = "#D55E00",  
   "1" = "#8B0000" 
 )
-
+quartileLinetypes <- c(
+  "4" = "solid",
+  "3" = "twodash",
+  "2" = "dotdash",
+  "1" = "dotted"  
+)
+ 
 legend_quartiles <- tibble(
   ObsQuart = factor(1:4),
   x = as.Date("2000-08-01"),
@@ -1260,98 +1266,97 @@ plot_data <- stamp_cn_with_quartiles |>
   group_by(year) |>
   mutate(hjust = runif(1, 0.8, 1))
 
+labelline_data <- stamp_cn_with_quartiles %>%
+  filter(species == "CO", year == max(year), julian > 210)
 
-
-co_spaghetti_p_quart<- ggplot(plot_data,aes(as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-        cum_count
-      )
-    ) +
+# Main plot
+co_spaghetti_p_quart <- ggplot(plot_data,
+                               aes(x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+                                   y = cum_count,
+                                   group = year)
+) +
+  # Spaghetti lines
+  geom_line(
+    aes(group = interaction(year, ObsQuart),
+        colour=factor(ObsQuart),
+        linetype = factor(ObsQuart)),
+    linewidth = 1,
+    alpha=0.7
     
-    geom_point(
-      data = legend_quartiles,
-      aes(x = x, y = y, colour = ObsQuart),
-      shape = 16, size = 4
-    )+ 
-    
-    # Historical data as colored lines by quartile:
-    geom_textline(
-      aes(label = year, group = year, hjust = hjust, colour = factor(ObsQuart)),
-      alpha = 0.9,
-      show.legend = FALSE
-    ) +
-    
-    # Highlight current year as black
-    geom_labelline(
-      data = filter(
-        stamp_cn_with_quartiles, 
-        species == "CO", 
-        year == max(year)
-      ), 
-      aes(y = cum_count),
-      label = curr_year,
+  ) +
+  
+  # Add year labels at the end of each line
+  geom_text(
+    data = plot_data %>%
+      group_by(year) %>%
+      filter(julian == max(julian)), # end of line
+    aes(label = year,
+        colour = factor(ObsQuart)),
+    hjust = -0.1,
+    vjust = 0.5,
+    size = 3,
+    show.legend = FALSE
+  ) +
+  
+  # Highlight current year with thicker line
+  {if(!is.null(labelline_data))
+    geom_line(
+      data = labelline_data,
+      aes(x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+          y = cum_count),
       colour = "black",
-      hjust = 0.9,
-      vjust = 0.1,
-      linewidth = 1.25,
-      boxcolour = "white",
-      alpha = 0.75,
-      label.padding = unit(0.1, "lines"),
-      gap = TRUE,
-      text_smoothing = 60
-    ) +
-    
-    scale_color_manual(
-      name = "Observed Quartile",
-      values = quartile_colors
-    ) +
-    
-    scale_x_date(
-      breaks = "2 weeks", date_labels = "%d %b"
-    ) +
-    
-    scale_y_continuous(position = "right",
-                       limits = c(0,max(plot_data$cum_count,na.rm = TRUE)* 1.05),
-                       expand = expansion(mult = c(0,0.05))) +
-    coord_cartesian(
-      xlim = as.Date(
-        c(
-          paste0(curr_year, "-08-01"), 
-          paste0(curr_year, "-11-05")
-        )
-      ),
-      expand = FALSE
-    ) +
-    
-    labs(
-      x = NULL, 
-      y = "Cumulative Stamp Falls Coho escapement"
-    ) +
-    
-    theme(
-      axis.title.y.right = element_text(
-        margin = margin(l = 0.5, unit = "lines")
-      )
-    ) +
-    
-    #Manually enter the colours:
-    scale_color_manual(
-      name = "Observed Quartile",
-      values = quartile_colors,
-      na.translate = FALSE  # removes NA from legend
-    ) +
-    
-    #Add a legend:
-    guides(
-      colour = guide_legend(
-        title = "Observed Quartile",
-        override.aes = list(
-          shape = 16,     # circle
-          size = 4,
-          linetype = 0    # no line
-        )
-      )
+      linewidth = 1.6
     )
+  } +
+  
+  # Highlight current year label at end
+  {if(!is.null(labelline_data))
+    geom_text(
+      data = labelline_data %>%
+        filter(julian == max(julian)),
+      aes(x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+          y = cum_count,
+          label = curr_year),
+      colour = "black",
+      hjust = -0.2,
+      vjust = 0.5,
+      fontface = "bold"
+    )
+  } +
+  
+  # Scales
+  
+  scale_color_manual(
+    name = "Observed Marine Survival Quartile",
+    na.translate = FALSE,  # removes NA from legend
+    values = quartile_colors,
+    labels = c(
+      "1"= "Quartile 1: Very Low",
+      "2"= "Quartile 2: Low",
+      "3"= "Quartile 3: Moderate",
+      "4"= "Quartile 4: High"
+    )
+  ) +
+  scale_linetype_manual(
+    name = "Observed Marine Survival Quartile",
+    na.translate = FALSE,  # removes NA from legend
+    values = quartileLinetypes,
+    labels = c(
+      "1"= "Quartile 1: Very Low",
+      "2"= "Quartile 2: Low",
+      "3"= "Quartile 3: Moderate",
+      "4"= "Quartile 4: High"
+    )
+  ) +
+  
+  theme_minimal() +
+  theme(panel.border = element_rect(color = "grey", fill = NA, linewidth = 1),
+    axis.ticks = element_line(color = "black",linewidth = 2),
+    legend.position = "top",
+    legend.title = element_text(face = "bold")) + xlab("") + scale_y_continuous(name = "Stamp River Coho Escapement", position = "right")
 
+# Print the plot
+plot(co_spaghetti_p_quart)
 
 
 
