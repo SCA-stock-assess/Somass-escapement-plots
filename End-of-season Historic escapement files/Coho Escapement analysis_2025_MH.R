@@ -6,8 +6,9 @@ library(readxl)
 library(ggridges)
 library(dplyr)
 library(lubridate)
-# library(ggplot2) #not needed
+library(ggplot2) 
 library(geomtextpath)
+library(ggrepel)
 
 # Enter the current analysis year
 curr_year <- 2025
@@ -607,20 +608,7 @@ actual_total_data <- stamp_cn %>%
 cumulative_plot<- 
   ggplot() +
 
-    #HISTORIC RIBBONS & LINES (no smoothing):
-    # geom_ribbon(data = historic_summary_cumulative,
-    #             aes(x = MonthDay, ymin = lower_marked, ymax = upper_marked),
-    #             fill = "blue", alpha = 0.2) +
-    # geom_line(data = historic_summary_cumulative,
-    #           aes(x = MonthDay, y = mean_marked),
-    #           color = "blue", size = 1) +
-    # 
-    # geom_ribbon(data = historic_summary_cumulative,
-    #             aes(x = MonthDay, ymin = lower_unmarked, ymax = upper_unmarked),
-    #             fill = "darkgreen", alpha = 0.2) +
-    # geom_line(data = historic_summary_cumulative,
-    #           aes(x = MonthDay, y = mean_unmarked),
-    #           color = "darkgreen", size = 1) +
+
 
   
   #HISTORIC RIBBONS:
@@ -1495,145 +1483,149 @@ sproat_cn <- sproat_cn %>%
   mutate(year = as.integer(year))
 
 # C) Merge the quartile data
-sproat_cn_with_quartiles <- sproat_cn %>%
+sproatCohowQuartile <- sproat_cn %>%
   left_join(RCH_Quartiles, by = "year") %>%
   mutate(
     # Replace NA quartiles with "0" to allow fallback color
     ObsQuart = replace_na(as.character(ObsQuart), "0")
   )
+# D) Ensure ObsQuart is a factor with fixed levels
+sproatCohowQuartile <- sproatCohowQuartile %>%
+  mutate(ObsQuart = factor(ObsQuart, levels = c("1", "2", "3", "4")))
 
+
+
+# E) Base data: last 12 years, keep only Julian days > 212 
+plotdata_base <- sproatCohowQuartile %>%
+  filter(between(year, curr_year - 11, curr_year), julian >212)
+
+# F) Extend past years forward (Julian 212–320), filling cumulative counts
+past_extended <- plotdata_base %>%
+  filter(year < curr_year) %>%
+  group_by(year, ObsQuart) %>%
+  complete(julian = seq(212, 320, by = 1)) %>%
+  fill(cum_count, .direction = "down") %>%
+  mutate(cum_count = replace_na(cum_count, 0)) %>%
+  ungroup()
+
+# G)Keep current year raw values, cropped to Aug 1+ (Julian 212+)
+current_raw_cropped <- plotdata_base %>%
+  filter(year == curr_year, julian >= 212)
+
+# H) Combine past and current year data
+plotdata_extended <- bind_rows(past_extended, current_raw_cropped) %>%
+  arrange(year, ObsQuart, julian) 
+
+
+# Define quartile color and linetype mappings
 quartile_colors <- c(
   "4" = "darkgreen",  
   "3" = "#6DA544",
   "2" = "#D55E00",  
-  "1" = "#8B0000",
- "0" = "grey80"  # fallback for missing quartile
+  "1" = "#8B0000"
 )
 
-# E) Dummy data for legend points
-legend_quartiles <- tibble(
-  ObsQuart = factor(1:4),
-  x = as.Date("2000-08-01"),
-  y = 0
+quartile_linetypes <- c(
+  "4" = "solid",
+  "3" = "twodash",
+  "2" = "dotdash",
+  "1" = "dotted"
 )
 
-
-# Get the date corresponding to the xlim end
-label_x <- as.Date(paste0(curr_year, "-10-10"))
-
-# For each year, get the last cum_count before or on label_x
-label_data <- sproat_cn_with_quartiles %>%
-  filter(
-    between(year, curr_year - 11, curr_year - 1),
-    species == "CO",
-    julian < 310
-  ) %>%
-  group_by(year) %>%
-  filter(as.Date(julian, origin = paste0(curr_year - 1, "-12-31")) <= label_x) %>%
-  slice_max(order_by = julian, n = 1) %>%
+# I) Label data: right edge, one point per (year, ObsQuart)
+labelline_data <- plotdata_extended %>%
+  group_by(year, ObsQuart) %>%
+  slice_max(julian, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  mutate(
-    x = label_x,
-    hjust = 1  # align label at the right edge
+  mutate(julian = 320)
+
+# J) Plot
+SproatCohowQyartilePlot<- ggplot(
+  plotdata_extended,
+  aes(
+    x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+    y = cum_count,
+    group = interaction(year, ObsQuart)
   )
-
-
-# Plot
-co_spaghetti_p_quart <- sproat_cn_with_quartiles |> 
-  filter(
-    between(year, curr_year - 11, curr_year - 1),
-    species == "CO",
-    julian < 310
-  ) |> 
-  ggplot(
-    aes(
-      as.Date(julian, origin = paste0(curr_year - 1, "-12-31")), 
-      cum_count,
-      colour = ObsQuart,
-      group = year
-    )
+) +
+  # All spaghetti lines (colored/typed by quartile)
+  geom_line(
+    aes(colour = ObsQuart, linetype = ObsQuart),
+    linewidth = 1, alpha = 0.7
   ) +
+  scale_colour_manual(values = quartile_colors) +
+  scale_linetype_manual(values = quartile_linetypes) +
   
-  # Legend color dots
-  geom_point(
-    data = legend_quartiles,
-    aes(x = x, y = y, colour = ObsQuart),
-    shape = 16, size = 4,
-    inherit.aes = FALSE
-  ) +
-  
-  # Historical lines without labels
-  geom_line(alpha = 0.7) +
-  
-  # Labels at right edge for historical lines
-  geom_text(
-    data = label_data,
-    aes(x = x, y = cum_count, label = year, colour = ObsQuart, hjust = hjust),
-    inherit.aes = FALSE,
-    size = 3,
-    show.legend = FALSE
-  ) +
-  
-  # Current year line with label
-  geom_labelline(
-    data = filter(sproat_cn_with_quartiles, species == "CO", year == curr_year) |> arrange(julian),
+  # Current year bold black line
+  geom_line(
+    data = current_raw_cropped,
     aes(
       x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
       y = cum_count
     ),
-    label = curr_year,
+    colour = "black", linewidth = 1.6
+  ) + #Current year label
+  geom_text(
+    data = current_raw_cropped %>%
+      filter(julian == max(julian)),
+    aes(x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+        y = cum_count,
+        label = curr_year),
     colour = "black",
-    hjust = 1,    # label at the end (right)
-    vjust = -7,    # adjust vertical position as needed
-    linewidth = 1.75,
-    boxcolour = "white",
-    alpha = 0.75,
-    label.padding = unit(0.1, "lines"),
-    text_smoothing = 60,
-    inherit.aes = FALSE
+    hjust = -0.2,
+    vjust = 0.5,
+    fontface = "bold"
   )+
+  # Right-aligned year labels (colored by quartile, smaller size)
+  geom_text_repel(
+    data = labelline_data,
+    aes(
+      x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
+      y = cum_count,
+      label = year,
+      colour = ObsQuart
+    ),
+    size = 3,               # smaller text
+    direction = "y",
+    nudge_x = 10,
+    segment.alpha = 0.4,
+    show.legend = FALSE 
+  ) +
   
   scale_color_manual(
-    name = "Observed Quartile",
+    name = "Observed Marine Survival Quartile",
+    na.translate = FALSE,  # removes NA from legend
     values = quartile_colors,
-    breaks = c("4","3","2","1")   # explicitly list only the quartiles you want
+    labels = c(
+      "1"= "Quartile 1: Very Low",
+      "2"= "Quartile 2: Low",
+      "3"= "Quartile 3: Moderate",
+      "4"= "Quartile 4: High"
+    )
   ) +
-  
-  scale_x_date(
-    breaks = "2 weeks", date_labels = "%d %b"
-  ) +
-  
-  scale_y_continuous(position = "right") +
-  
-  coord_cartesian(
-    xlim = as.Date(c(paste0(curr_year, "-08-01"), paste0(curr_year, "-10-10"))),
-    expand = FALSE
-  ) +
-  
-  labs(
-    x = NULL, 
-    y = "Cumulative Sproat Falls Coho escapement"
-  ) +
-  
-  theme(
-    axis.title.y.right = element_text(
-      margin = margin(l = 0.5, unit = "lines")
+  scale_linetype_manual(
+    name = "Observed Marine Survival Quartile",
+    na.translate = FALSE,  # removes NA from legend
+    values = quartileLinetypes,
+    labels = c(
+      "1"= "Quartile 1: Very Low",
+      "2"= "Quartile 2: Low",
+      "3"= "Quartile 3: Moderate",
+      "4"= "Quartile 4: High"
     )
   ) +
   
-  guides(
-    colour = guide_legend(
-      title = "Observed Quartile",
-      override.aes = list(
-        shape = 16,
-        size = 6,
-        linetype = 1
-      )
-    )
-  )
+  theme_minimal() +
+  theme(panel.border = element_rect(color = "grey", fill = NA, linewidth = 1),
+        axis.ticks = element_line(color = "black",linewidth = 2),
+        legend.position = "top",
+        legend.title = element_text(face = "bold")) + xlab("") + scale_y_continuous(name = "Spraot River Coho Escapement", position = "right")
 
-# H) Display plot
-print(co_spaghetti_p_quart)
+
+
+
+# K) Display plot
+print(SproatCohowQyartilePlot)
 
 
 # Save to the network folder
