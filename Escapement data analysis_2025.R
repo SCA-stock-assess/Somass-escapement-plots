@@ -1755,7 +1755,7 @@ ggsave(
 # Coho curves -------------------------------------------------------------
 
 
-#### Exact same plot as previous version with Y axis adjusted to prevent cutting off- Delete above plots once everyone happy with this one_VP?
+#### Exact same plot as previous version with Y axis adjusted to prevent cutting off
 # Define filtered_data outside the pipeline
 filtered_data <- stamp_cn |> 
   filter(

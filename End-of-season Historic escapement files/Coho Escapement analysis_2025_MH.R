@@ -888,7 +888,7 @@ coho_unmarked_spaghetti_plot <- ggplot() +
     show.legend = TRUE
   ) +
   
-  # Current year (2025) bold red line with label:
+  # Current year (2025) bold black line with label:
   geom_labelline(
     data = current_data,
     
@@ -922,7 +922,7 @@ coho_unmarked_spaghetti_plot <- ggplot() +
   
   scale_y_continuous(
     name = "Cumulative Coho Escapement",
-    limits = c(0, 15000),
+    limits = c(0, 17000),
     expand = expansion(mult = c(0, 0.05)),
     position = "right"
   ) +
@@ -1120,7 +1120,7 @@ ggsave(
     curr_year,
     "/A23/Escapement plot/",
     "R-coho_marked_spaghetti_plot",
-    format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
+    format(Sys.Date(), "%Y-%m-%d"), "_",  # Adds current date here
     ".png"
   ),
   height = 4.5,
@@ -1130,7 +1130,7 @@ ggsave(
 
 
 
-########################## Coho Spaghetti Plot STAMP ################################
+###############################  STAMP Coho not colorcoded ################################
 #Read in the Quartile data:
 
 RCH_Quartiles <- read_xlsx(
@@ -1208,11 +1208,8 @@ RCH_Quartiles <- read_xlsx(
   ) 
 )
 
+###############################  STAMP Coho color-coded ################################
 
-
-
-
-#COLOURED ACCORDING TO QUARTILES:
 
 #A) Rename the columns:
 RCH_Quartiles <- RCH_Quartiles %>%
@@ -1359,13 +1356,13 @@ ggsave(
     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
     ".png"
   ),
-  height = 4.5,
-  width = 8,
+  height = 5.5,
+  width = 9,
   units = "in"
 )
 
 
-########################## Coho Spaghetti Plot SPROAT ################################
+#####################  SPROAT COHO Not Color-coded ################################
 #Read in the Quartile data:
 
 RCH_Quartiles <- read_xlsx(
@@ -1375,7 +1372,7 @@ RCH_Quartiles <- read_xlsx(
 ) 
 
 
-#NOT COLOURED ACCORDING TO QUARTILES:
+
 # Summarise data and feed into plot
 (co_spaghetti_p <- sproat_cn |> 
     # Compare to the last 10 years
@@ -1422,27 +1419,7 @@ RCH_Quartiles <- read_xlsx(
     gap = TRUE,
     text_smoothing = 60
     ) +
-    geom_labelline(
-      data = filter(
-        stamp_cn, 
-        species == "CO", 
-        year == max(year)
-      ), 
-      aes(
-        x = as.Date(julian, origin = paste0(curr_year - 1, "-12-31")),
-        y = cum_count
-      ),
-      label = curr_year,
-      colour = "blue",
-      hjust = 0.9,
-      vjust = 0.1,
-      linewidth = 1.25,
-      boxcolour = "white",
-      alpha = 0.75,
-      label.padding = unit(0.1, "lines"),
-      gap = TRUE,
-      text_smoothing = 60
-    ) +
+    
     scale_x_date(
       breaks = "2 weeks", date_labels = "%d %b"
     ) +
@@ -1472,7 +1449,7 @@ RCH_Quartiles <- read_xlsx(
 
 
 
-#COLOURED ACCORDING TO QUARTILES:
+#####################  SPROAT COHO Color-coded ################################
 
 RCH_Quartiles <- read_xlsx("RbtObsQuart.xlsx", sheet = "Sheet1", na = "") %>%
   rename(year = `Return Year`) %>%
