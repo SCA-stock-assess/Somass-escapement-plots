@@ -642,12 +642,12 @@ ggsave(
         legend.title = element_text(face = "bold")) + xlab("") + 
   scale_y_continuous(name = "Stamp marked Coho", position = "right", breaks = seq(0, 20000, by = 2000) ) 
 # Display plot
-print(CohoHatcheryStampWQuartiles)
+print(CohoMARKEDStampWQuartiles)
 
 
 # Save to the network folder
 ggsave(
-  plot = CohoHatcheryStampWQuartiles,
+  plot = CohoMARKEDStampWQuartiles,
   filename = paste0(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
@@ -744,7 +744,7 @@ StampCohoSpagethiQuartile<- ggplot() +
         axis.ticks = element_line(color = "black",linewidth = 2),
         legend.position = "top",
         legend.title = element_text(face = "bold")) + xlab("") + 
-  scale_y_continuous(name = "Stamp Marked and Unmarked Coho", position = "right", breaks = seq(0, 34000, by = 2000) ) 
+  scale_y_continuous(name = "Stamp Marked and Unmarked Coho", position = "right", breaks = seq(0, 34000, by = 4000) ) 
 # Display plot
 print(StampCohoSpagethiQuartile)
 

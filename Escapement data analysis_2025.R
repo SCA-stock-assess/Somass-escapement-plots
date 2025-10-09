@@ -1569,7 +1569,7 @@ stamp_cn <- read_xlsx(
 
 
 # Escapement target
-esc_target <- 32610 #escapement target for 2025 was 32,610 according to egg escapement target (pre-season forecast)
+esc_target <- 33000 #escapement target for 2025 was 32,610 according to egg escapement target (pre-season forecast)
 
 
 # Summarise data and feed into plot
@@ -1630,7 +1630,7 @@ esc_target <- 32610 #escapement target for 2025 was 32,610 according to egg esca
       labels = scales::comma,
       name = paste(curr_year, "cumulative escapement")
     ),
-    expand = c(0,0)
+    expand = expansion(mult = c(0, 0.05))  # adds 5% headroom
   ) +
   scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
   guides(colour = "none") +
@@ -1658,7 +1658,7 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2025_CN_cum-esc-timing",
+    "Fig3_2025_CN_TimingHistorical",
     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
     ".png"
   ),
@@ -1744,7 +1744,7 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2024_CN_cum-esc-historic.png"
+    "Fig4_2025_CN_Spagethi.png"
   ),
   height = 4.5,
   width = 8,
@@ -1838,7 +1838,7 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "R-PLOT_2025_CO_cum-esc-timing",
+    "CohoEscapementStampSpageti",
     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
     ".png"
   ),
