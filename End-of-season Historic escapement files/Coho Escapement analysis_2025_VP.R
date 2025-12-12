@@ -383,7 +383,7 @@ sproat_cn <- read_xlsx(
 #the in-season chinook run this year for us to be able to analyze, but that doesn't typically get done
 #from what I understand
 
-#stamp-Sproat mark rate is not provided in-season:
+#Sproat mark rate is not provided in-season:
 current_data <- read_xlsx(
   "Daily Totals by Age 2025.xlsx",
   sheet = "Stamp CN&CO",
@@ -491,10 +491,10 @@ CohoUnmarkedStampWQuartiles<- ggplot() +
     label = curr_year,
     colour = "black",
     linewidth = 1.5,
-    boxcolour = "white",
+    boxcolour = "transparent",
     alpha = 0.9,
     label.padding = unit(0.15, "lines"),
-    hjust = 0.9,
+    hjust = 0.8,
     vjust = 0.1,
     gap = TRUE,
     text_smoothing = 60
@@ -506,8 +506,7 @@ CohoUnmarkedStampWQuartiles<- ggplot() +
   scale_x_date(
     date_labels = "%b-%d",
     date_breaks = "1 week",
-    limits = as.Date(c("2000-08-01", "2000-10-20"))
-  ) +
+    limits = as.Date(c("2000-08-01", "2000-10-30"))) + xlab("") +
   
   
   scale_color_manual(
@@ -534,11 +533,13 @@ CohoUnmarkedStampWQuartiles<- ggplot() +
   )+
   
   
-  theme(panel.border = element_rect(color = "grey", fill = NA, linewidth = 1),
-        axis.ticks = element_line(color = "black",linewidth = 2),
-        legend.position = "top",
-        legend.title = element_text(face = "bold")) + xlab("") + 
-  scale_y_continuous(name = "Stamp Unmarked Coho", position = "right", breaks = seq(0, 20000, by = 2000) )  
+  theme(legend.position = "top",
+        legend.title = element_text(face = "bold"),
+        panel.border = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.line = element_line()) +
+  scale_y_continuous(name = "Stamp River Unmarked Coho Escapement", position = "right", breaks = seq(0, 20000, by = 2000) )  
 
 
 # Display plot
@@ -593,7 +594,7 @@ ggsave(
     label = curr_year,
     colour = "black",
     linewidth = 1.5,
-    boxcolour = "white",
+    boxcolour = "transparent",
     alpha = 0.9,
     label.padding = unit(0.15, "lines"),
     hjust = 0.9,
@@ -608,8 +609,7 @@ ggsave(
   scale_x_date(
     date_labels = "%b-%d",
     date_breaks = "1 week",
-    limits = as.Date(c("2000-08-01", "2000-10-20"))
-  ) +
+    limits = as.Date(c("2000-08-01", "2000-10-30"))) + xlab("") +
   
   
   scale_color_manual(
@@ -636,11 +636,14 @@ ggsave(
   )+
   
   
-  theme(panel.border = element_rect(color = "grey", fill = NA, linewidth = 1),
-        axis.ticks = element_line(color = "black",linewidth = 2),
-        legend.position = "top",
-        legend.title = element_text(face = "bold")) + xlab("") + 
-  scale_y_continuous(name = "Stamp marked Coho", position = "right", breaks = seq(0, 20000, by = 2000) ) 
+  theme(legend.position = "top",
+        legend.title = element_text(face = "bold"),
+        panel.border = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.line = element_line()) +
+  scale_y_continuous(name = "Stamp River Marked Coho Escapement", position = "right", breaks = seq(0, 20000, by = 2000) )  
+
 # Display plot
 print(CohoMARKEDStampWQuartiles)
 
@@ -712,7 +715,7 @@ StampCohoSpagethiQuartile<- ggplot() +
   scale_x_date(
     date_labels = "%b-%d",
     date_breaks = "1 week",
-    limits = as.Date(c("2000-08-01", "2000-10-20"))
+    limits = as.Date(c("2000-08-01", "2000-10-30"))
   ) +
   
   
@@ -744,7 +747,7 @@ StampCohoSpagethiQuartile<- ggplot() +
         axis.ticks = element_line(color = "black",linewidth = 2),
         legend.position = "top",
         legend.title = element_text(face = "bold")) + xlab("") + 
-  scale_y_continuous(name = "Stamp Marked and Unmarked Coho", position = "right", breaks = seq(0, 34000, by = 4000) ) 
+  scale_y_continuous(name = "Stamp River All Coho Escapement", position = "right", breaks = seq(0, 34000, by = 4000) ) 
 # Display plot
 print(StampCohoSpagethiQuartile)
 
@@ -806,13 +809,13 @@ ggsave(
     filter(
       between(year, max(year) - 11, max(year) - 1),
       species == "CO",
-      between( julian ,210, 310)
+      between( julian ,205, 320)
     ) |>
     group_by(year) |>
     mutate(hjust = runif(1, 0.8, 1))
   
   labelline_data <- Sproat_cn_with_quartiles %>%
-    filter(species == "CO", year == max(year), julian > 210)
+    filter(species == "CO", year == max(year), julian > 205)
   
   # Main plot
   CohoSproatQuartile <- ggplot(plot_data,
@@ -837,7 +840,7 @@ ggsave(
         filter(julian == max(julian)), # end of line
       aes(label = year,
           colour = factor(ObsQuart)),
-      hjust = -0.1,
+      hjust = 0.3,
       vjust = 0.5,
       size = 3,
       show.legend = FALSE
@@ -862,13 +865,18 @@ ggsave(
           y = cum_count,
           label = curr_year),
       colour = "black",
-      hjust = -0.2,
-      vjust = 0.5,
+      hjust = -0.3,
+      vjust = 0.4,
       fontface = "bold"
     )+
     
     # Scales
     
+    scale_x_date(
+      date_labels = "%b-%d",
+      date_breaks = "2 week") + xlab("") +
+    
+  
     scale_color_manual(
       name = "Observed Marine Survival Quartile",
       na.translate = FALSE,  # removes NA from legend
@@ -892,30 +900,29 @@ ggsave(
       )
     ) +
     
-    theme_minimal() +
-    theme(panel.border = element_rect(color = "grey", fill = NA, linewidth = 1),
-          axis.ticks = element_line(color = "black",linewidth = 2),
-          legend.position = "top",
+    theme(legend.position = "top",
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          axis.line = element_line(),
           legend.title = element_text(face = "bold")) + xlab("") + 
-    scale_y_continuous(name = "SProat River Coho Escapement", position = "right",
-                       breaks = seq(0, 14000, by = 1000) ) 
+    scale_y_continuous(name = "Sproat River All Coho Escapement", position = "right",
+                       breaks = seq(0, 12000, by = 2000) ) 
   
   # Print the plot
   plot(CohoSproatQuartile)
   
-  # Save to the network folder
   ggsave(
     plot = CohoSproatQuartile,
     filename = paste0(
       "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
       curr_year,
       "/A23/Escapement plot/",
-      "2025CohoSproatQuartile",
+      "SproatAllCohoQuartile",
       format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
       ".png"
     ),
-    height = 4.5,
-    width = 9,
+    height = 6,
+    width = 12,
     units = "in"
   )
   
@@ -972,7 +979,7 @@ RCH_Quartiles <- read_xlsx(
       aes(y = cum_count),
       label = curr_year,
       colour = "red",
-      hjust = 0.9,
+      hjust = 0.8,
       vjust = 0.1,
       linewidth = 1.25,
       boxcolour = "white",
@@ -1037,7 +1044,7 @@ RCH_Quartiles <- read_xlsx(
         colour = "grey50",
         alpha = 0.7
       ) +
-      # 2023 as thick red line with semi-transparent label
+      # 2025 as thick red line with semi-transparent label
       geom_labelline(
         data = filter(
           sproat_cn, 
@@ -1047,7 +1054,7 @@ RCH_Quartiles <- read_xlsx(
         aes(y = cum_count),
         label = curr_year,
         colour = "red",
-        hjust = 0.9,
+        hjust = 0.7,
         vjust = 0.1,
         linewidth = 1.25,
         boxcolour = "white",
@@ -1067,7 +1074,9 @@ RCH_Quartiles <- read_xlsx(
             paste0(curr_year, "-08-01"), 
             paste0(curr_year, "-11-05")
           )
+          
         ),
+        ylim = c(0,12000),
         expand = FALSE
       ) +
       labs(
@@ -1076,7 +1085,7 @@ RCH_Quartiles <- read_xlsx(
       ) +
       theme(
         axis.title.y.right = element_text( # Increase y-axis title margin
-          margin = margin(l = 0.5, unit = "lines")
+          margin = margin(l = 0.2, unit = "lines")
         )
       ) 
   )
@@ -1084,9 +1093,12 @@ RCH_Quartiles <- read_xlsx(
   plot(SproatCohoSpaghettiGrey)
   
 ################## Coho Spaghetti Plot SPROAT and STAMP ################################
-  
+  StampCoho<- stamp_cn |> 
+    filter(species=="CO")
+  SproatCoho<- sproat_cn |> 
+    filter(species=="CO")
   #Combine stamp and sproat database into one database called Somass:
-  somass_cn <- bind_rows(stamp_cn, sproat_cn) |>
+  somassCoho <- bind_rows(StampCoho, SproatCoho) |>
     group_by(year, date, species) |>
     summarise(
       count = sum(count, na.rm = TRUE),
@@ -1110,7 +1122,7 @@ RCH_Quartiles <- read_xlsx(
   
   #NOT COLOURED ACCORDING TO QUARTILES:
   # Summarise data and feed into plot
-  (co_spaghetti_p <- somass_cn |> 
+  (co_spaghetti_p <- SomassCoho |> 
       # Compare to the last 10 years
       filter(
         between(year, max(year, na.rm = TRUE) - 11, max(year,na.rm=TRUE) -1),
@@ -1134,8 +1146,7 @@ RCH_Quartiles <- read_xlsx(
       # 2023 as thick red line with semi-transparent label
       geom_labelline(
         data = filter(
-          somass_cn, 
-          species == "CO", 
+          SomassCoho, 
           year == max(year)
         ), 
         aes(y = cum_count),
@@ -1185,7 +1196,7 @@ RCH_Quartiles <- read_xlsx(
     rename(year = `Return Year`)
   
   #B) Merge the quartiles with plotting data:
-  somass_cn_with_quartiles <- somass_cn %>%
+  somass_cn_with_quartiles <- somassCoho %>%
     left_join(RCH_Quartiles, by = "year")
   
   somass_cn_with_quartiles |> 
@@ -1216,7 +1227,6 @@ RCH_Quartiles <- read_xlsx(
   (co_spaghetti_p_quart <- somass_cn_with_quartiles |> 
       filter(
         between(year, max(year) - 11, max(year) -1),
-        species == "CO",
         julian < 310
       ) |> 
       group_by(year) |> 
@@ -1245,7 +1255,6 @@ RCH_Quartiles <- read_xlsx(
       geom_labelline(
         data = filter(
           somass_cn_with_quartiles, 
-          species == "CO", 
           year == max(year)
         ), 
         aes(y = cum_count),

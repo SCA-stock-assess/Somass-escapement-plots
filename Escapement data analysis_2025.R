@@ -103,6 +103,7 @@ escday |>
 
 # Update current Somass escapement target, ask FM what targets would be without management consideration
 
+
 # som_esc <- 366667 #For an 800,000 return
 # som_esc <- 375000 #For an 850,000 return
 som_esc <- 358333 ###FOR a 750,000 return
@@ -112,6 +113,8 @@ som_esc <- 358333 ###FOR a 750,000 return
 # som_esc <- 337500 ###for a 600,000 return
 # som_esc <- 325000 for a 500,000 return: according to the management plan (500k return leads to 325k esc target)
 
+#CM (Nov 27,2025):
+#Based on last inseason reforecast the escapement target is 350k for a 700k run. for a 650k the escapement target would be 343,750
 
 # Forecasts for current year escapement
 #split the escapement target into 2 different proportions (SPR and GCL):
@@ -145,8 +148,9 @@ current_est
 #values in Nicholas Brown's draft CSAS working paper that was reviewed on May 26&27 2025.
 ref_pts <- data.frame(
   system = unique(escday$system),
-  lwr = c(26103, 50729), # Sproat, Stamp --> old values: c(12060, 29290)
-  upr = c(82073, 113575) # Sproat, Stamp --> old values: c(65570, 91640)
+  #updated on November 27, 2025 based on final numbers from CSAS (Provided by CM after talking to NB)
+  lwr = c(15,220, 30,887), # Sproat, Stamp --> old values: c(12060, 29290)
+  upr = c(68,316, 92,229) # Sproat, Stamp --> old values: c(65570, 91640)
 )
 
 
@@ -801,7 +805,7 @@ management_plots %>%
 
 
 
-#### SHOW BOTH CURRENT GCL:SPR WITH AND WITHOUT MANAGEMENT GAINST HISTORIC #####
+#### SHOW BOTH CURRENT GCL:SPR WITH AND WITHOUT MANAGEMENT AGAINST HISTORIC #####
 
 managementvsno_plot <- function(system_name){
   sys_fcst_hist <- esc_fcst_hist %>% filter(system == system_name) %>% pull(fcst)
@@ -1332,7 +1336,7 @@ escday |>
 
 
 # Plot for current year
-escday |> 
+rigidEscPlot<- escday |> 
   filter(year == max(year)) |> 
   ggplot(
     aes(
@@ -1351,7 +1355,7 @@ escday |>
     limits = rev,
     expand = expansion(c(0, 0.05))
   ) +
-  ggtitle("Sockeye escapement timing through Somass fishways") +
+  ggtitle("Sockeye escapement timing through Somass fishways - 2025") +
   labs(y = NULL, x = NULL) +
   scale_x_date(
     date_labels = "%b", 
@@ -1365,6 +1369,26 @@ escday |>
     legend.justification = c(1,1),
     legend.box.background = element_rect(colour = "black",fill = "white")
   )
+
+#SAVE the plot:
+ggsave(
+  plot = comp_plot,
+  filename = here("Hydromet Data", "plots", paste0("Fig6_Stamp-Sproat_Hydromets_", Sys.Date(), ".png")), #added the date to the name
+  width = 6,
+  height = 4.5,
+  units = "in"
+)
+
+
+ggsave(
+  plot = rigidEscPlot, filename = "RigidPlotEscSockeye.png",
+  path = "Y:/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/2025_MGT/Escapement plots",
+  width = 8,
+  height = 4.5,
+  units = "in"
+)
+
+
 
 
 # Base uncoloured plot for both systems
@@ -1535,7 +1559,7 @@ escday |>
 
 
 
-# Chinook & Coho escapement data -------------------------------------------
+############################# Chinook & Coho escapement data ####################
 
 
 # Load historical escapement data from August onward
@@ -1603,7 +1627,7 @@ esc_target <- 33000 #escapement target for 2025 was 32,610 according to egg esca
     label = paste("Historic ", max(stamp_cn$year) - 21, "to", max(stamp_cn$year) -1), 
     linewidth = 1,
     hjust = 0.6,
-    colour = "blue",
+    colour = "navy blue",
     method = "glm",
     method.args = list(family = binomial())
   ) +
@@ -1615,9 +1639,9 @@ esc_target <- 33000 #escapement target for 2025 was 32,610 according to egg esca
     ), 
     aes(y = cum_count/esc_target),
     label = as.character(curr_year),
-    colour = "red",
-    hjust = 0.8,
-    #vjust = -0.2,
+    colour = "orange",
+    hjust = 0.7,
+    vjust = 0.8,
     #gap = FALSE,
     linewidth = 1,
     text_smoothing = 60
@@ -1638,7 +1662,7 @@ esc_target <- 33000 #escapement target for 2025 was 32,610 according to egg esca
     xlim = as.Date(
       c(
         paste0(curr_year, "-08-01"), 
-        paste0(curr_year, "-11-15")
+        paste0(curr_year, "-10-27")
         )
       )
     ) +
@@ -1685,10 +1709,9 @@ ggsave(
         cum_count
       )
     ) +
-    # Historical data as thin grey lines
+    # Historical data as 
     geom_textline(
-      aes(label = year, group = year, hjust = hjust),
-      colour = "grey50",
+      aes(label = year, group = year, colour  =factor( year), hjust = 0.95),
       alpha = 0.7
     ) +
     # Current year as thick red line with semi-transparent label
@@ -1700,9 +1723,9 @@ ggsave(
       ),
       aes(y = cum_count),
       label = as.character(curr_year),
-      colour = "red",
-      hjust = 0.85,
-      linewidth = 1.25,
+      colour = "black",
+      hjust = 0.65,
+      linewidth = 1.5,
       boxcolour = "white",
       alpha = 0.75,
       label.padding = unit(0.1, "lines"),
@@ -1714,7 +1737,7 @@ ggsave(
       limits = as.Date(
         c(
           paste0(curr_year, "-08-01"),
-          paste0(curr_year, "-11-05")
+          paste0(curr_year, "-10-20")
         )
       ),
       expand = expansion(mult = 0)
@@ -1776,9 +1799,8 @@ filtered_data <- stamp_cn |>
     ) +
     # Historical data as thin grey lines
     geom_textline(
-      aes(label = year, group = year, hjust = hjust),
-      colour = "grey50",
-      alpha = 0.7
+      aes(label = year, group = year, color=factor(year), hjust = hjust),
+      alpha = 0.9 , linewidth = 0.7
     ) +
     # 2023 as thick red line with semi-transparent label
     geom_labelline(
@@ -1789,10 +1811,10 @@ filtered_data <- stamp_cn |>
       ), 
       aes(y = cum_count),
       label = curr_year,
-      colour = "red",
-      hjust = 0.9,
+      colour = "Black",
+      hjust = 0.8,
       vjust = 0.1,
-      linewidth = 1.25,
+      linewidth = 1.5,
       boxcolour = "white",
       alpha = 0.75,
       label.padding = unit(0.1, "lines"),
@@ -1814,7 +1836,7 @@ filtered_data <- stamp_cn |>
       xlim = as.Date(
         c(
           paste0(curr_year, "-08-01"), 
-          paste0(curr_year, "-11-05")
+          paste0(curr_year, "-11-2")
         )
       ),
       expand = FALSE
@@ -1826,7 +1848,10 @@ filtered_data <- stamp_cn |>
     theme(
       axis.title.y.right = element_text( # Increase y-axis title margin
         margin = margin(l = 0.5, unit = "lines")
-      )
+      ),
+      panel.border = element_blank(), #removes the box but next two lines add the two axes back in
+      axis.line.y.right = element_line(),
+      axis.line.x.bottom  = element_line()
     ) 
 )
 
@@ -1838,7 +1863,7 @@ ggsave(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "CohoEscapementStampSpageti",
+    "CohoEscapementStampSpaghetti",
     format(Sys.Date(), "%Y-%m-%d"), "_",  # Add current date here
     ".png"
   ),
