@@ -1,6 +1,6 @@
 # =============================================================================
-# Sproat Coho Escapement — Load, Wrangle & Plot
-# Historical: Sproat Daily Expanded (2015–2025)
+# Stamp Coho Escapement — Load, Wrangle & Plot
+# Historical: Stamp Daily Expanded (2015–2025)
 # Current:    Daily Totals by Age (in-season, updated weekly)
 # =============================================================================
 
@@ -37,7 +37,6 @@ forecast_colours <- c(
 forecast_colour <- forecast_colours[[forecast_category]]
 
 
-
 # -----------------------------------------------------------------------------
 # 3. ROBUST DATE PARSER
 #    Handles Excel serial numbers (e.g. "42479") and "mm-dd-yyyy" strings.
@@ -59,13 +58,13 @@ parse_review_date <- function(x) {
 
 # -----------------------------------------------------------------------------
 # 4. HISTORICAL YEAR LOADER
-#    Reads one Sproat Daily Expanded sheet, strips totals/blank rows,
+#    Reads one Stamp Daily Expanded sheet, strips totals/blank rows,
 #    parses dates and converts count columns to numeric.
 # -----------------------------------------------------------------------------
 
-load_sproat_year <- function(file, year) {
+load_stamp_year <- function(file, year) {
   read_xlsx(file,
-            sheet     = "Sproat Daily Expanded",
+            sheet     = "Stamp Daily Expanded",
             na        = "",
             col_types = "text") |>
     select(
@@ -97,7 +96,7 @@ load_sproat_year <- function(file, year) {
 # 5. FILE MANIFEST — add one row per new historical year
 # -----------------------------------------------------------------------------
 
-sproat_files <- tribble(
+stamp_files <- tribble(
   ~year, ~file,
   2015,  "2015 Inseason Somass Counts.xlsx",
   2016,  "2016 Inseason Somass Counts.xlsx",
@@ -127,8 +126,8 @@ needed_cols <- c(
   "CoJk  Unk", "CoJk  NoMark", "CoJk  Mark"
 )
 
-map2(sproat_files$file, sproat_files$year, ~ {
-  nms     <- read_xlsx(.x, sheet = "Sproat Daily Expanded",
+map2(stamp_files$file, stamp_files$year, ~ {
+  nms     <- read_xlsx(.x, sheet = "Stamp Daily Expanded",
                        col_types = "text", n_max = 0) |> names()
   missing <- needed_cols[!needed_cols %in% nms]
   tibble(year         = .y,
@@ -148,7 +147,7 @@ map2(sproat_files$file, sproat_files$year, ~ {
 #    - Each year padded to JULIAN_END so percentile bands plateau cleanly
 # -----------------------------------------------------------------------------
 
-sproatHistPadded <- map2(sproat_files$file, sproat_files$year, load_sproat_year) |>
+stampHistPadded <- map2(stamp_files$file, stamp_files$year, load_stamp_year) |>
   bind_rows() |>
   rename(date = `Review Date`) |>
   filter(!is.na(date)) |>
@@ -179,7 +178,7 @@ sproatHistPadded <- map2(sproat_files$file, sproat_files$year, load_sproat_year)
 # 8. SANITY CHECK — all n_na_date should be 0
 # -----------------------------------------------------------------------------
 
-sproatHistPadded |>
+stampHistPadded |>
   group_by(year) |>
   summarise(
     n_rows    = n(),
@@ -198,9 +197,9 @@ sproatHistPadded |>
 #    Line stops at the most recent weekly update — never padded forward.
 # -----------------------------------------------------------------------------
 
-sproatCurrent <- read_xlsx(
+stampCurrent <- read_xlsx(
   "Daily Totals by Age 2026 Example.xlsx",
-  sheet = " Sproat CN&CO",
+  sheet = "Stamp CN&CO",
   na    = ""
 ) |>
   mutate(
@@ -237,19 +236,21 @@ summarise_percentiles <- function(data, col) {
     )
 }
 
-sproatHistTiming  <- summarise_percentiles(sproatHistPadded, "cum_prop")
-sproatHistCount   <- summarise_percentiles(sproatHistPadded, "cum_count")
-sproatHistMark    <- summarise_percentiles(sproatHistPadded, "cum_mark")
-sproatHistNoMark  <- summarise_percentiles(sproatHistPadded, "cum_nomark")
+stampHistTiming  <- summarise_percentiles(stampHistPadded, "cum_prop")
+stampHistCount   <- summarise_percentiles(stampHistPadded, "cum_count")
+stampHistMark    <- summarise_percentiles(stampHistPadded, "cum_mark")
+stampHistNoMark  <- summarise_percentiles(stampHistPadded, "cum_nomark")
 
 
 # -----------------------------------------------------------------------------
 # 11. SHARED PLOT ELEMENTS
 # -----------------------------------------------------------------------------
 
-ribbon_light <- "#c9756e"    # below 25th percentile — muted terracotta red
-ribbon_mid   <- "#d4a843"    # 25th to 60th percentile — muted amber
-ribbon_dark  <- "#6a9e6f"    # above 60th percentile — muted sage green
+
+
+ribbon_light <- "#c9756e"    # below 25th percentile — behind historical norm
+ribbon_mid   <- "#d4a843"    # 25th to 60th percentile — typical range
+ribbon_dark  <- "#6a9e6f"    # above 60th percentile — ahead of historical norm
 
 x_scale <- scale_x_continuous(limits = c(200, JULIAN_END))
 
@@ -269,10 +270,10 @@ p_bottom <- ggplot(forecast_df, aes(x = category, y = value, fill = category)) +
            aes(x = category, y = value),
            fill = forecast_colour, width = 0.7) +
   annotate("text", x = forecast_category, y = 0.5,
-           label = "► 2026", hjust = 0.5, vjust = 0.5,
+           label = "► Current", hjust = 0.5, vjust = 0.5,
            fontface = "bold") +
   scale_fill_manual(values = forecast_colours) +
-  scale_x_discrete(limits = names(forecast_colours)) +
+  scale_x_discrete(limits = names(forecast_colours)) +   
   labs(x = NULL, y = NULL, title = "Pre-season Survival Forecast") +
   theme_classic() +
   theme(legend.position = "none",
@@ -283,7 +284,7 @@ p_bottom <- ggplot(forecast_df, aes(x = category, y = value, fill = category)) +
 # -----------------------------------------------------------------------------
 # 13. RIBBON PLOT BUILDER
 #     hist_median_col: median column name in the historical summary data
-#     current_col:     column in sproatCurrent to overlay (always cum_count
+#     current_col:     column in stampCurrent to overlay (always cum_count
 #                      or cum_prop — never marked/unmarked since unavailable)
 # -----------------------------------------------------------------------------
 
@@ -298,32 +299,33 @@ build_ribbon_plot <- function(hist_data, hist_median_col, current_col, y_label) 
     geom_ribbon(data = hist_data,
                 aes(x = julian, ymin = p60, ymax = pMax),
                 fill = ribbon_dark, alpha = 0.30) +
-    geom_line(data = sproatCurrent,
+    geom_line(data = stampCurrent,
               aes(x = julian, y = .data[[current_col]]),
               colour = "black", linewidth = 1.5) +
     annotate("text",
-             x      = max(sproatCurrent$julian),
-             y      = max(sproatCurrent[[current_col]], na.rm = TRUE),
+             x      = max(stampCurrent$julian),
+             y      = max(stampCurrent[[current_col]], na.rm = TRUE),
              label  = paste0(CURRENT_YEAR),
              colour = "black", hjust = -0.1, size = 3) +
     # ── Ribbon legend ──────────────────────────────────────────────────────
-    annotate("rect", xmin = 225, xmax = 230, ymin = 7500, ymax = 7900,
+    annotate("rect", xmin = 220, xmax = 230, ymin = 23400, ymax = 24400,
              fill = ribbon_dark,  alpha = 0.6) +
-    annotate("rect", xmin = 225, xmax = 230, ymin = 7050, ymax = 7450,
+    annotate("rect", xmin = 220, xmax = 230, ymin = 22200, ymax = 23200,
              fill = ribbon_mid,   alpha = 0.6) +
-    annotate("rect", xmin = 225, xmax = 230, ymin = 6600, ymax = 7000,
+    annotate("rect", xmin = 220, xmax = 230, ymin = 21000, ymax = 22000,
              fill = ribbon_light, alpha = 0.6) +
-    annotate("text", x = 232, y = 7700, label = "Above 60th percentile",
+    annotate("text", x = 230, y = 23900, label = "Above 60th percentile",
              hjust = 0, size = 3, colour = "grey20") +
-    annotate("text", x = 232, y = 7225, label = "25th–60th percentile",
+    annotate("text", x = 230, y = 22700, label = "25th–60th percentile",
              hjust = 0, size = 3, colour = "grey20") +
-    annotate("text", x = 232, y = 6800, label = "Below 25th percentile",
+    annotate("text", x = 230, y = 21500, label = "Below 25th percentile",
              hjust = 0, size = 3, colour = "grey20") +
     # ───────────────────────────────────────────────────────────────────────
-    scale_y_continuous(name = paste("Sproat River", y_label)) +
+    scale_y_continuous(name = paste("Stamp River", y_label)) +
     x_scale +
     theme_classic()
 }
+
 
 # -----------------------------------------------------------------------------
 # 14. RIBBON PLOTS
@@ -331,29 +333,29 @@ build_ribbon_plot <- function(hist_data, hist_median_col, current_col, y_label) 
 #     the in-season file does not have a marked/unmarked breakdown.
 # -----------------------------------------------------------------------------
 
-p_count  <- build_ribbon_plot(sproatHistCount,  "median_val",
+p_count  <- build_ribbon_plot(stampHistCount,  "median_val",
                               "cum_count", "Cumulative Adult Coho Count")
-p_nomark <- build_ribbon_plot(sproatHistNoMark, "median_val",
+p_nomark <- build_ribbon_plot(stampHistNoMark, "median_val",
                               "cum_count", "Cumulative Unmarked Coho Count")
-p_timing <- build_ribbon_plot(sproatHistTiming, "median_val",
+p_timing <- build_ribbon_plot(stampHistTiming, "median_val",
                               "cum_prop",  "Cumulative Proportion of Run")
 
 # Print and save
 p_count   / p_bottom + plot_layout(heights = c(4, 1)) #✅ p_count — always valid
-ggsave("sproat_abundance.png", width = 8, height = 6, dpi = 300)
+ggsave("stamp_abundance.png", width = 8, height = 6, dpi = 300)
 
 p_nomark  / p_bottom + plot_layout(heights = c(4, 1)) #❌ p_mark — not valid in-season
-ggsave("sproat_unmarked.png",  width = 8, height = 6, dpi = 300)
+ggsave("stamp_unmarked.png",  width = 8, height = 6, dpi = 300)
 
 p_timing  / p_bottom + plot_layout(heights = c(4, 1)) #⚠️ p_timing — valid only with a forecast denominator
-ggsave("sproat_timing.png",    width = 8, height = 6, dpi = 300)
+ggsave("stamp_timing.png",    width = 8, height = 6, dpi = 300)
 
 
 # -----------------------------------------------------------------------------
 # 15. RIDGELINE PLOT — total adult coho (marked + unmarked), one ridge per year
 # -----------------------------------------------------------------------------
 
-half_timing <- sproatHistPadded |>
+half_timing <- stampHistPadded |>
   group_by(year) |>
   filter(cum_prop >= 0.5) |>
   slice(1) |>
@@ -362,31 +364,26 @@ half_timing <- sproatHistPadded |>
 
 median_50pct <- half_timing$median_50pct_julian
 
-p_ridge_total <- sproatHistPadded |>
+p_ridge_total <- stampHistPadded |>
   filter(!is.na(julian), julian >= 225) |>
   mutate(year = factor(year)) |>
   ggplot(aes(x = julian, y = cum_prop)) +
-  geom_area(fill = "#59A14F", alpha = 0.4, colour = "#6B7280", linewidth = 0.6) +
+  geom_area(fill = "#7ba3a8", alpha = 0.4, colour = "black", linewidth = 0.6) +
   scale_x_continuous(limits = c(225, JULIAN_END), expand = c(0, 0)) +
   scale_y_continuous(breaks = c(0.5, 1), labels = c("0.5", "1.0"),
                      limits = c(0, 1), expand = c(0, 0),
                      position = "right") +
-  
-  # Median 50% vertical reference
-  #geom_vline(xintercept = median_50pct, linetype = "solid",
-  #           color = "#c0703a", linewidth = 0.6) +
-  
   facet_grid(year ~ ., switch = "y") +
   
   labs(x = "", y = NULL,
-       title = "Sproat River Total Adult Coho Escapement Timing") +
+       title = "Stamp River Total Adult Coho Escapement Timing") +
   
   theme_classic() +
   theme(
     strip.placement   = "outside",
     strip.background  = element_blank(),
-    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 11,
-                                     colour = "#c0703a"),
+    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 10,
+                                     colour = "#333"),
     panel.spacing     = unit(0.1, "lines"),
     axis.text.y.right  = element_text(size = 6, colour = "#333333"),
     axis.ticks.y.right = element_line(linewidth = 0.3),
@@ -397,5 +394,5 @@ p_ridge_total <- sproatHistPadded |>
   )
 
 print(p_ridge_total)
-ggsave("sproat_ridge_total.png", plot = p_ridge_total,
+ggsave("stamp_ridge_total.png", plot = p_ridge_total,
        width = 8, height = 10, dpi = 300)
