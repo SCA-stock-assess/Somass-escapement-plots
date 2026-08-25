@@ -1,6 +1,6 @@
 # =============================================================================
 # Sproat Coho Escapement — Load, Wrangle & Plot
-# Historical:  2016–2025
+# Historical:  2015–2025
 # Current:     Daily Totals by Age (in-season, updated weekly)
 # =============================================================================
 
@@ -67,6 +67,24 @@ safe_julian <- function(date) {
 }
 
 # -----------------------------------------------------------------------------
+# 3c. SHEET NAME RESOLVER
+#     Some workbooks have stray whitespace on sheet names too (e.g. " Sproat
+#     Daily Expanded"). read_xlsx(sheet = ...) requires an exact match, so
+#     resolve the real sheet name via trimmed comparison first rather than
+#     trusting the literal target string.
+# -----------------------------------------------------------------------------
+
+resolve_sheet <- function(path, target) {
+  sheets <- excel_sheets(path)
+  match  <- sheets[trimws(sheets) == trimws(target)]
+  if (length(match) == 0) {
+    stop(sprintf("Sheet '%s' not found in %s (available: %s)",
+                 target, path, paste(sheets, collapse = ", ")))
+  }
+  match[1]
+}
+
+# -----------------------------------------------------------------------------
 # 4. HISTORICAL DATA LOADER
 #    Reads one Sproat Daily Expanded sheet, strips totals/blank rows,
 #    parses dates and converts count columns to numeric.
@@ -75,9 +93,14 @@ safe_julian <- function(date) {
 load_sproat_year <- function(filename, year) {
   local_path <- file.path(HIST_FOLDER, filename)
   read_xlsx(local_path,
-            sheet     = "Sproat Daily Expanded",
+            sheet     = resolve_sheet(local_path, "Sproat Daily Expanded"),
             na        = "",
             col_types = "text") |>
+    # Some years' headers have a stray leading space (e.g. " SkJk", " CnJk")
+    # -- trim before selecting so this works regardless of which year's file
+    # happens to have it, instead of relying on every source file's headers
+    # being hand-edited to match.
+    rename_with(trimws) |>
     select(
       Site, `Review Date`,
       Sk, SkJk, Co, CoJk, Pk, Cm, Cn, CnJk, Stlh, Rain,
@@ -136,8 +159,12 @@ needed_cols <- c(
 )
 
 map2(sproat_files$file, sproat_files$year, ~ {
-  nms     <- read_xlsx(file.path(HIST_FOLDER, .x), sheet = "Sproat Daily Expanded",
-                       col_types = "text", n_max = 0) |> names()
+  # resolve_sheet()/trimws() here match load_sproat_year() exactly -- keeps
+  # this check honest about what will actually load, not just what the raw
+  # sheet name and header look like before trimming.
+  path    <- file.path(HIST_FOLDER, .x)
+  nms     <- read_xlsx(path, sheet = resolve_sheet(path, "Sproat Daily Expanded"),
+                       col_types = "text", n_max = 0) |> names() |> trimws()
   missing <- needed_cols[!needed_cols %in% nms]
   tibble(year         = .y,
          missing_cols = if (length(missing) == 0) "none" else
@@ -411,12 +438,9 @@ p_ridge_nomark <- build_ridge_plot(
 #   latest available observation.
 #
 #   Depends on objects already defined earlier in the script:
-#     S_gen, S_msy, zone_data, JULIAN_END, sproatCurrent
+#     S_gen, S_msy, zone_data, JULIAN_END, sproatCurrent, ribbon_light,
+#     ribbon_mid, ribbon_dark (all set in section 10)
 # =============================================================================
-
-ribbon_light <- "#c9756e"    # below Sgen        — muted terracotta red
-ribbon_mid   <- "#d4a843"    # Sgen–Smsy         — muted amber
-ribbon_dark  <- "#6a9e6f"    # above Smsy        — muted sage green
 
 build_current_plot <- function(current_data, count_col, plot_title, file_out) {
   
@@ -469,7 +493,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
     ) +
     labs(
       x = "",
-      title = plot_title
+      title = plot_title,
     ) +
     theme_classic() +
     theme(
@@ -495,7 +519,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
 # -----------------------------------------------------------------------------
 p_current_coho <- build_current_plot(
   sproatCurrent, "cum_count",
-  "Sproat River Adult Unmarked Coho",
+  "Sproat River Adult Coho",
   "SproatCoho_Current2026.png"
 )
 
