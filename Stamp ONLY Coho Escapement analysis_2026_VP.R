@@ -10,6 +10,15 @@
 JULIAN_END   <- 325   # <- confirm
 CURRENT_YEAR <- 2026  # <- confirm
 
+# Current-year in-season file — SharePoint folder mapped/synced locally,
+# so it's just a normal path. No API, no auth code needed.
+CURRENT_FOLDER <- "Y:/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/2026_MGT"
+CURRENT_FILE   <- file.path(CURRENT_FOLDER, "Daily Totals by Age 2026.xlsx")
+
+# Historical files — local folder (downloaded once from SharePoint since
+# these 10 seasons are closed/static and never change).
+HIST_FOLDER <- "C:/Users/POURFARAJV/Documents/GitHub/Somass-escapement-plots/End-of-season Historic escapement files/CohoEscapementData"
+
 # -----------------------------------------------------------------------------
 # 1. LIBRARIES
 # -----------------------------------------------------------------------------
@@ -64,8 +73,9 @@ safe_julian <- function(date) {
 #    parses dates and converts count columns to numeric.
 # -----------------------------------------------------------------------------
 
-load_Stamp_year <- function(file, year) {
-  read_xlsx(file,
+load_Stamp_year <- function(filename, year) {
+  local_path <- file.path(HIST_FOLDER, filename)
+  read_xlsx(local_path,
             sheet     = "Stamp Daily Expanded",
             na        = "",
             col_types = "text") |>
@@ -99,6 +109,7 @@ load_Stamp_year <- function(file, year) {
 
 Stampfiles <- tribble(
   ~year, ~file,
+  2015,  "2015 Inseason Somass Counts.xlsx",
   2016,  "2016 Inseason Somass Counts.xlsx",
   2017,  "2017 Inseason Somass Counts.xlsx",
   2018,  "2018 Inseason Somass Counts Final.xlsx",
@@ -126,7 +137,7 @@ needed_cols <- c(
 )
 
 map2(Stampfiles$file, Stampfiles$year, ~ {
-  nms     <- read_xlsx(.x, sheet = "Stamp Daily Expanded",
+  nms     <- read_xlsx(file.path(HIST_FOLDER, .x), sheet = "Stamp Daily Expanded",
                        col_types = "text", n_max = 0) |> names()
   missing <- needed_cols[!needed_cols %in% nms]
   tibble(year         = .y,
@@ -208,7 +219,7 @@ StampHistPadded |>
 #   Stamp sheet uses the same spacing before running.
 # -----------------------------------------------------------------------------
 StampCurrent <- read_xlsx(
-  "Y:/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/2026_MGT/Daily Totals by Age 2026.xlsx",
+  CURRENT_FILE,
   sheet = "Stamp CN&CO",
   na    = ""
 ) |>
@@ -508,3 +519,4 @@ StampUnMarked <- build_current_plot(
   "Sproat River Adult Coho — 2026 In-Season Escapement",
   "StampRiverUnMarkedCoho.png"
 )
+

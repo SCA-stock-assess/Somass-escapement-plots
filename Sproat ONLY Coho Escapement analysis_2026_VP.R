@@ -108,6 +108,7 @@ load_sproat_year <- function(filename, year) {
 
 sproat_files <- tribble(
   ~year, ~file,
+  2015,  "2015 Inseason Somass Counts.xlsx",
   2016,  "2016 Inseason Somass Counts.xlsx",
   2017,  "2017 Inseason Somass Counts.xlsx",
   2018,  "2018 Inseason Somass Counts Final.xlsx",
@@ -500,3 +501,4 @@ p_current_coho <- build_current_plot(
   "Sproat River Adult Coho — 2026 In-Season Escapement",
   "SproatCoho_Current2026.png"
 )
+
