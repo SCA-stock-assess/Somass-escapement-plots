@@ -469,10 +469,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
     ) +
     labs(
       x = "",
-      title = plot_title,
-      subtitle = paste0(
-        " — dashed lines mark Sgen, Smsy and Smax benchmarks"
-      )
+      title = plot_title
     ) +
     theme_classic() +
     theme(
@@ -498,7 +495,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
 # -----------------------------------------------------------------------------
 p_current_coho <- build_current_plot(
   sproatCurrent, "cum_count",
-  "Sproat River Adult Coho — 2026 In-Season Escapement",
+  "Sproat River Adult Unmarked Coho",
   "SproatCoho_Current2026.png"
 )
 
