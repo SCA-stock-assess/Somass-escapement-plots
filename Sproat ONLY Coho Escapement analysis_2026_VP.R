@@ -461,7 +461,10 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
   start_julian <- min(pd$julian, na.rm = TRUE)
   x_breaks <- scales::breaks_pretty(n = 8)(c(start_julian, JULIAN_END))
   x_breaks <- x_breaks[x_breaks >= start_julian & x_breaks <= JULIAN_END]
-  
+
+  # most recent count, labelled at the tip of the line
+  tip <- pd |> slice_max(julian, n = 1, with_ties = FALSE)
+
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
     geom_rect(
@@ -482,6 +485,11 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
+    geom_point(data = tip, size = 2, colour = "#333333") +
+    geom_text(
+      data = tip, aes(label = scales::comma(count_val)),
+      hjust = -0.15, vjust = 0.5, size = 3.3, fontface = "bold", colour = "#333333"
+    ) +
     scale_x_continuous(
       limits = c(start_julian, JULIAN_END), expand = c(0, 0),
       breaks = x_breaks,
