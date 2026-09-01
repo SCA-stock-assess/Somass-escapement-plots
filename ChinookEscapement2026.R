@@ -96,7 +96,10 @@ CurrentYearEsc <- read_xlsx(
   group_by(species) |>
   arrange(date, .by_group = TRUE) |>
   mutate(
-    cum_count = cumsum(count),
+    # Blank/not-yet-entered days in the live file must read as 0, not NA --
+    # cumsum() propagates NA forward, which would otherwise wipe out every
+    # later day's cumulative count (see the same pattern in the Coho scripts).
+    cum_count = cumsum(replace_na(count, 0)),
     ann_ttl = sum(count, na.rm = TRUE),
     cum_prop = cum_count / ann_ttl,
     julian = safe_julian(date)
@@ -161,6 +164,12 @@ build_cn_timing_plot <- function(hist_data, current_data, curr_year,
     )
   }
   
+  # Most recent day with a real (non-NA) cumulative count, for the
+  # current-count callout at the end of the orange line.
+  latest_point <- current_input |>
+    filter(!is.na(cum_count)) |>
+    slice_max(date, n = 1, with_ties = FALSE)
+  
   ggplot() +
     geom_ribbon(
       data = hist_summary,
@@ -183,6 +192,18 @@ build_cn_timing_plot <- function(hist_data, current_data, curr_year,
       label = as.character(curr_year),
       colour = curr_colour, hjust = 0.7, vjust = 0.8,
       linewidth = 1.6, text_smoothing = 60
+    ) +
+    geom_point(
+      data = latest_point,
+      aes(date, prop_of_target),
+      colour = curr_colour, size = 3
+    ) +
+    geom_label(
+      data = latest_point,
+      aes(date, prop_of_target, label = scales::comma(cum_count)),
+      colour = "white", fill = curr_colour, fontface = "bold",
+      size = 3, label.padding = unit(0.15, "lines"), label.r = unit(0.1, "lines"),
+      hjust = 0, nudge_x = 2
     ) +
     scale_y_continuous(
       labels = scales::percent,

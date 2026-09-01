@@ -277,7 +277,7 @@ StampCurrent <- read_xlsx(
 
 ribbon_light <- "#c9756e"    # below Sgen        — muted terracotta red
 ribbon_mid   <- "#d4a843"    # Sgen–Smsy         — muted amber
-ribbon_dark  <- "#6a9e6f"    # above Smsy        — muted sage green
+ribbon_dark  <- "#2D6A4F"    # above Smsy        — teal-green
 
 # =============================================================================
 # 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
@@ -291,7 +291,7 @@ S_max <- 9322
 col_gen <- ribbon_light   # below Sgen         
 col_mid <- ribbon_mid     # Sgen–Smsy          
 col_msy <- ribbon_dark    # above Smsy         
-col_max <- "#5b6b8c"      # Smax reference line — muted slate blue, info-only (no zone)
+col_max <- "#2b2b2b"      # Smax reference line — muted slate blue, info-only (no zone)
 
 # cum_count is monotonic non-decreasing within a season, so each threshold
 # is crossed at most once; if never reached, returns NA rather than -Inf.
@@ -467,10 +467,12 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       zone = factor(zone, levels = levels(zone_data$zone))
     )
   
-  # start the x-axis at the first day a count actually exists, not a fixed day
-  start_julian <- min(pd$julian, na.rm = TRUE)
-  x_breaks <- scales::breaks_pretty(n = 6)(c(start_julian, JULIAN_END))
+  # start the x-axis at the first day count is actually > 0, not a fixed day
+  start_julian <- min(pd$julian[pd$count_val > 0], na.rm = TRUE)
+  x_breaks <- scales::breaks_pretty(n = 10)(c(start_julian, JULIAN_END))
   x_breaks <- x_breaks[x_breaks >= start_julian & x_breaks <= JULIAN_END]
+  # most recent count, labelled at the tip of the line
+  tip <- pd |> slice_max(julian, n = 1, with_ties = FALSE)
   
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
@@ -488,18 +490,24 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       ),
       name = NULL
     ) +
-    geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.5) +
+    geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.85) +
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
+    geom_point(data = tip, size = 2, colour = "#333333") +
+    geom_text(
+      data = tip, aes(label = scales::comma(count_val)),
+      hjust = -0.15, vjust = 0.5, size = 3.3, fontface = "bold", colour = "#333333"
+    ) +
     scale_x_continuous(
       limits = c(start_julian, JULIAN_END), expand = c(0, 0),
       breaks = x_breaks,
       labels = format(as.Date(x_breaks - 1, origin = "2001-01-01"), "%b %d")
     ) +
     scale_y_continuous(
-      name = "Cumulative escapement",
-      labels = scales::comma
+      name = "Escapement",
+      labels = scales::comma, 
+      breaks = scales::breaks_pretty(n = 6)
     ) +
     labs(
       x = "",
