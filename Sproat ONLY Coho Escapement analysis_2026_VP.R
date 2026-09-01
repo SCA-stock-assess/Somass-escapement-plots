@@ -534,6 +534,14 @@ p_current_coho <- build_current_plot(
 # -----------------------------------------------------------------------------
 # Probability of reaching smsy by Mid-September
 # -----------------------------------------------------------------------------
+smsy_crossings <- sproatHistPadded |>
+  group_by(year) |>
+  arrange(julian, .by_group = TRUE) |>
+  summarise(smsy_julian = get_crossing(julian, cum_count_nomark, S_msy),
+            .groups = "drop")
+
+sep15_julian <- as.numeric(format(as.Date("2001-09-15"), "%j"))  # = 258
+
 plot_dat <- smsy_crossings |>
   mutate(status = ifelse(is.na(smsy_julian), "Never reached", "Reached"),
          plot_julian = ifelse(is.na(smsy_julian), JULIAN_END, smsy_julian))
@@ -541,4 +549,12 @@ plot_dat <- smsy_crossings |>
 ggplot(plot_dat, aes(x = plot_julian, y = factor(year), color = status)) +
   geom_point(size = 3) +
   geom_vline(xintercept = sep15_julian, linetype = "dashed", color = "grey40") +
-  labs(x = "Day of year", y = "", title = "Smsy crossing date by year")
+  scale_x_continuous(breaks = seq(260, 340, by = 20)) +   # only these get labels + major gridlines
+  labs(x = "Day of year", y = "", title = "Smsy crossing date by year",
+       subtitle = "Vertical dashed line is September 15") +
+  theme(plot.subtitle = element_text(size = 9),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(colour = "grey40"))
+        
