@@ -478,8 +478,8 @@ p_ridge_nomark <- build_ridge_plot(
 #   hist_years:  number of most recent historic years to average over;
 #                NULL (default) uses every year available in hist_data.
 build_current_plot <- function(current_data, count_col, plot_title, file_out,
-                               hist_data = NULL, hist_years = NULL) {
-  
+                                hist_data = NULL, hist_years = NULL) {
+
   pd <- current_data |>
     filter(!is.na(julian)) |>
     arrange(julian) |>
@@ -493,14 +493,15 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-  
+
   # start the x-axis at the first day count is actually > 0, not a fixed day
   start_julian <- min(pd$julian[pd$count_val > 0], na.rm = TRUE)
   x_breaks <- scales::breaks_pretty(n = 10)(c(start_julian, JULIAN_END))
   x_breaks <- x_breaks[x_breaks >= start_julian & x_breaks <= JULIAN_END]
-  # most recent count, labelled at the tip of the line
-  tip <- pd |> slice_max(julian, n = 1, with_ties = FALSE)
-  
+
+  #label for the current count
+  tip <- pd %>%  slice_max(julian, n=1, with_ties = FALSE)
+
   # historic-average comparison line + 5-95% range, computed on the same
   # count_col being plotted so current year and history are directly
   # comparable (e.g. cum_count vs cum_count, not cum_count vs cum_count_mark)
@@ -508,7 +509,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
   if (!is.null(hist_data)) {
     curr_yr <- max(current_data$year, na.rm = TRUE)
     yr_lo   <- if (is.null(hist_years)) -Inf else curr_yr - hist_years
-    
+
     hist_summary <- hist_data |>
       filter(year >= yr_lo, year < curr_yr,
              julian >= start_julian, julian <= JULIAN_END) |>
@@ -526,7 +527,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
         u95_smooth       = count_smooth(u95, julian)
       )
   }
-  
+
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
     geom_rect(
@@ -546,25 +547,23 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     ) +
     geom_line(colour = "#333333", linewidth = 0.9) +
     { if (!is.null(hist_summary))
-      geom_ribbon(
-        data = hist_summary, aes(x = julian, ymin = l95_smooth, ymax = u95_smooth),
-        inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
-      )
+        geom_ribbon(
+          data = hist_summary, aes(x = julian, ymin = l95_smooth, ymax = u95_smooth),
+          inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
+        )
     } +
     { if (!is.null(hist_summary))
-      geom_line(
-        data = hist_summary, aes(x = julian, y = hist_mean_smooth),
-        inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
-      )
+        geom_line(
+          data = hist_summary, aes(x = julian, y = hist_mean_smooth),
+          inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
+        )
     } +
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
-    geom_point(data = tip, size = 2, colour = "#333333") +
-    geom_text(
-      data = tip, aes(label = scales::comma(count_val)),
-      hjust = -0.15, vjust = 0.5, size = 3.3, fontface = "bold", colour = "#333333"
-    ) +
+    geom_point(data = tip, size=2, color="#333333") +
+    geom_text(data = tip, aes(label=scales::comma(count_val)),
+                              hjust=-0.15,vjust=0.5, size=3.3, color="#333333") +
     scale_x_continuous(
       limits = c(start_julian, JULIAN_END), expand = c(0, 0),
       breaks = x_breaks,
@@ -593,7 +592,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
       legend.justification    = "left",
       legend.margin           = margin(b = 5)
     )
-  
+
   print(p)
   ggsave(file_out, p, width = 9, height = 5.5, dpi = 300)
   p
