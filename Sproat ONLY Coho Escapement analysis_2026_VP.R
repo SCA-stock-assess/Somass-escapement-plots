@@ -485,18 +485,9 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
   # count_col being plotted so current year and history are directly
   # comparable (e.g. cum_count vs cum_count, not cum_count vs cum_count_mark)
   hist_summary <- NULL
-  hist_label   <- NULL
   if (!is.null(hist_data)) {
     curr_yr <- max(current_data$year, na.rm = TRUE)
     yr_lo   <- if (is.null(hist_years)) -Inf else curr_yr - hist_years
-
-    hist_years_used <- hist_data |>
-      filter(year >= yr_lo, year < curr_yr) |>
-      distinct(year) |>
-      pull(year) |>
-      sort()
-
-    hist_label <- paste0(min(hist_years_used), "–", max(hist_years_used), " avg")
 
     hist_summary <- hist_data |>
       filter(year >= yr_lo, year < curr_yr,
@@ -509,11 +500,6 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
         .groups = "drop"
       )
   }
-
-  # anchor the historic-average label to today's date (tip$julian), not the
-  # padded end of the historic series, so it doesn't clip off the plot edge
-  # and reads as a direct "today vs. average" comparison
-  hist_tip <- if (!is.null(hist_summary)) filter(hist_summary, julian == tip$julian)
 
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
@@ -532,7 +518,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
       ),
       name = NULL
     ) +
-    geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.85) +
+    geom_line(colour = "#333333", linewidth = 0.9) +
     { if (!is.null(hist_summary))
         geom_ribbon(
           data = hist_summary, aes(x = julian, ymin = l95, ymax = u95),
@@ -543,13 +529,6 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
         geom_line(
           data = hist_summary, aes(x = julian, y = hist_mean),
           inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
-        )
-    } +
-    { if (!is.null(hist_summary))
-        geom_text(
-          data = hist_tip, aes(x = julian, y = hist_mean, label = hist_label),
-          inherit.aes = FALSE, hjust = -0.1, vjust = -0.6, size = 3, fontface = "italic",
-          colour = hist_avg_colour
         )
     } +
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
@@ -565,7 +544,8 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     ) +
     scale_y_continuous(
       name = "Escapement",
-      labels = scales::comma, 
+      labels = scales::comma,
+      limits = c(0, 12000),
       breaks = scales::breaks_pretty(n = 6)
     ) +
     labs(
