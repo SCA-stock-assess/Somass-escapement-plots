@@ -264,8 +264,8 @@ sproatCurrent <- read_xlsx(
 
 ribbon_light   <- "#c9756e"    # below Sgen        — muted terracotta red
 ribbon_mid     <- "#d4a843"    # Sgen–Smsy         — muted amber
-ribbon_dark    <- "#2D6A4F"    # Smsy–Smax         — teal-green
-ribbon_darkest <- "#1e4634"    # above Smax        — deep forest green
+ribbon_dark    <- "#74C69D"    # Smsy–Smax         — light green
+ribbon_darkest <- "#1B4332"    # above Smax        — darkest green
 
 # =============================================================================
 # 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
