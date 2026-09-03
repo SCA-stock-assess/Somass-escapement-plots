@@ -271,6 +271,16 @@ ribbon_dark    <- "#74C69D"    # Smsy–Smax         — light green
 ribbon_darkest <- "#1B4332"    # above Smax        — darkest green
 hist_avg_colour <- "#4a6fa5"   # historic-average comparison line/ribbon
 
+# Smooths the historic mean/ribbon boundaries across julian day. Coho's
+# 5-95% range here is raw counts (unbounded), not proportions -- Chinook's
+# logit_smooth() (ChinookEscapement2026.R) assumes a [0,1]-bounded value via
+# a binomial GLM, which would be statistically invalid on unbounded counts.
+# loess is the generic analogue: no boundedness assumption, same "smooth the
+# noisy day-to-day historic estimate" purpose.
+count_smooth <- function(y, x, span = 0.3) {
+  predict(loess(y ~ x, span = span))
+}
+
 # =============================================================================
 # 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
 #
@@ -498,6 +508,12 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
         l95       = quantile(.data[[count_col]], 0.05, na.rm = TRUE),
         u95       = quantile(.data[[count_col]], 0.95, na.rm = TRUE),
         .groups = "drop"
+      ) |>
+      arrange(julian) |>
+      mutate(
+        hist_mean_smooth = count_smooth(hist_mean, julian),
+        l95_smooth       = count_smooth(l95, julian),
+        u95_smooth       = count_smooth(u95, julian)
       )
   }
 
@@ -521,13 +537,13 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     geom_line(colour = "#333333", linewidth = 0.9) +
     { if (!is.null(hist_summary))
         geom_ribbon(
-          data = hist_summary, aes(x = julian, ymin = l95, ymax = u95),
+          data = hist_summary, aes(x = julian, ymin = l95_smooth, ymax = u95_smooth),
           inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
         )
     } +
     { if (!is.null(hist_summary))
         geom_line(
-          data = hist_summary, aes(x = julian, y = hist_mean),
+          data = hist_summary, aes(x = julian, y = hist_mean_smooth),
           inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
         )
     } +
