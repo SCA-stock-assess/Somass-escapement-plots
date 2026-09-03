@@ -266,6 +266,7 @@ ribbon_light   <- "#c9756e"    # below Sgen        — muted terracotta red
 ribbon_mid     <- "#d4a843"    # Sgen–Smsy         — muted amber
 ribbon_dark    <- "#74C69D"    # Smsy–Smax         — light green
 ribbon_darkest <- "#1B4332"    # above Smax        — darkest green
+hist_avg_colour <- "#4a6fa5"   # historic-average comparison line/ribbon
 
 # =============================================================================
 # 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
@@ -446,8 +447,15 @@ p_ridge_nomark <- build_ridge_plot(
 #     ribbon_mid, ribbon_dark (all set in section 10)
 # =============================================================================
 
-build_current_plot <- function(current_data, count_col, plot_title, file_out) {
-  
+#   hist_data:   optional historic data frame (e.g. sproatHistPadded) used
+#                to draw a historic-average comparison line + 5-95% shaded
+#                range, in the same style as the Stamp Chinook timing plot's
+#                historic-mean overlay. NULL (default) omits it entirely.
+#   hist_years:  number of most recent historic years to average over;
+#                NULL (default) uses every year available in hist_data.
+build_current_plot <- function(current_data, count_col, plot_title, file_out,
+                                hist_data = NULL, hist_years = NULL) {
+
   pd <- current_data |>
     filter(!is.na(julian)) |>
     arrange(julian) |>
@@ -469,7 +477,41 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
   
   #label for the current count
   tip <- pd %>%  slice_max(julian, n=1, with_ties = FALSE)
-  
+
+  # historic-average comparison line + 5-95% range, computed on the same
+  # count_col being plotted so current year and history are directly
+  # comparable (e.g. cum_count vs cum_count, not cum_count vs cum_count_mark)
+  hist_summary <- NULL
+  hist_label   <- NULL
+  if (!is.null(hist_data)) {
+    curr_yr <- max(current_data$year, na.rm = TRUE)
+    yr_lo   <- if (is.null(hist_years)) -Inf else curr_yr - hist_years
+
+    hist_years_used <- hist_data |>
+      filter(year >= yr_lo, year < curr_yr) |>
+      distinct(year) |>
+      pull(year) |>
+      sort()
+
+    hist_label <- paste0(min(hist_years_used), "–", max(hist_years_used), " avg")
+
+    hist_summary <- hist_data |>
+      filter(year >= yr_lo, year < curr_yr,
+             julian >= start_julian, julian <= JULIAN_END) |>
+      group_by(julian) |>
+      summarise(
+        hist_mean = mean(.data[[count_col]], na.rm = TRUE),
+        l95       = quantile(.data[[count_col]], 0.05, na.rm = TRUE),
+        u95       = quantile(.data[[count_col]], 0.95, na.rm = TRUE),
+        .groups = "drop"
+      )
+  }
+
+  # anchor the historic-average label to today's date (tip$julian), not the
+  # padded end of the historic series, so it doesn't clip off the plot edge
+  # and reads as a direct "today vs. average" comparison
+  hist_tip <- if (!is.null(hist_summary)) filter(hist_summary, julian == tip$julian)
+
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
     geom_rect(
@@ -488,6 +530,25 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       name = NULL
     ) +
     geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.85) +
+    { if (!is.null(hist_summary))
+        geom_ribbon(
+          data = hist_summary, aes(x = julian, ymin = l95, ymax = u95),
+          inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
+        )
+    } +
+    { if (!is.null(hist_summary))
+        geom_line(
+          data = hist_summary, aes(x = julian, y = hist_mean),
+          inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
+        )
+    } +
+    { if (!is.null(hist_summary))
+        geom_text(
+          data = hist_tip, aes(x = julian, y = hist_mean, label = hist_label),
+          inherit.aes = FALSE, hjust = -0.1, vjust = -0.6, size = 3, fontface = "italic",
+          colour = hist_avg_colour
+        )
+    } +
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
@@ -533,7 +594,8 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
 p_current_coho <- build_current_plot(
   sproatCurrent, "cum_count",
   "Sproat River Adult Unmarked Coho",
-  "SproatCoho_Current2026.png"
+  "SproatCoho_Current2026.png",
+  hist_data = sproatHistPadded
 )
 
 # -----------------------------------------------------------------------------
