@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------------------
 # 0. CONFIG
 # -----------------------------------------------------------------------------
-JULIAN_END   <- 325   # <- confirm
+JULIAN_END   <- 340   # <- confirm
 CURRENT_YEAR <- 2026  # <- confirm
 
 # Current-year in-season file — SharePoint folder mapped/synced locally,
@@ -351,7 +351,7 @@ build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-
+  
   bench_dates <- pd |>
     group_by(year) |>
     arrange(julian, .by_group = TRUE) |>
@@ -478,8 +478,8 @@ p_ridge_nomark <- build_ridge_plot(
 #   hist_years:  number of most recent historic years to average over;
 #                NULL (default) uses every year available in hist_data.
 build_current_plot <- function(current_data, count_col, plot_title, file_out,
-                                hist_data = NULL, hist_years = NULL) {
-
+                               hist_data = NULL, hist_years = NULL) {
+  
   pd <- current_data |>
     filter(!is.na(julian)) |>
     arrange(julian) |>
@@ -493,14 +493,14 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-
+  
   # start the x-axis at the first day count is actually > 0, not a fixed day
   start_julian <- min(pd$julian[pd$count_val > 0], na.rm = TRUE)
   x_breaks <- scales::breaks_pretty(n = 10)(c(start_julian, JULIAN_END))
   x_breaks <- x_breaks[x_breaks >= start_julian & x_breaks <= JULIAN_END]
   # most recent count, labelled at the tip of the line
   tip <- pd |> slice_max(julian, n = 1, with_ties = FALSE)
-
+  
   # historic-average comparison line + 5-95% range, computed on the same
   # count_col being plotted so current year and history are directly
   # comparable (e.g. cum_count vs cum_count, not cum_count vs cum_count_mark)
@@ -508,7 +508,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
   if (!is.null(hist_data)) {
     curr_yr <- max(current_data$year, na.rm = TRUE)
     yr_lo   <- if (is.null(hist_years)) -Inf else curr_yr - hist_years
-
+    
     hist_summary <- hist_data |>
       filter(year >= yr_lo, year < curr_yr,
              julian >= start_julian, julian <= JULIAN_END) |>
@@ -526,7 +526,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
         u95_smooth       = count_smooth(u95, julian)
       )
   }
-
+  
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
     geom_rect(
@@ -546,16 +546,16 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     ) +
     geom_line(colour = "#333333", linewidth = 0.9) +
     { if (!is.null(hist_summary))
-        geom_ribbon(
-          data = hist_summary, aes(x = julian, ymin = l95_smooth, ymax = u95_smooth),
-          inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
-        )
+      geom_ribbon(
+        data = hist_summary, aes(x = julian, ymin = l95_smooth, ymax = u95_smooth),
+        inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
+      )
     } +
     { if (!is.null(hist_summary))
-        geom_line(
-          data = hist_summary, aes(x = julian, y = hist_mean_smooth),
-          inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
-        )
+      geom_line(
+        data = hist_summary, aes(x = julian, y = hist_mean_smooth),
+        inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
+      )
     } +
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
@@ -604,8 +604,8 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
 # -----------------------------------------------------------------------------
 #StampMarked <- build_current_plot(
 #  StampCurrent, "cum_count_mark",
- # "Stamp River Adult Marked Coho",
- # "StampRiverMarkedCoho.png"
+# "Stamp River Adult Marked Coho",
+# "StampRiverMarkedCoho.png"
 #)
 
 
@@ -641,4 +641,3 @@ ggplot(plot_dat, aes(x = plot_julian, y = factor(year), color = status)) +
         panel.grid.major.y = element_blank(),
         panel.border = element_blank(),
         axis.line = element_line(colour = "grey40"))
-
