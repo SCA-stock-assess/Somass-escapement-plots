@@ -247,16 +247,19 @@ sproatCurrent <- read_xlsx(
   sheet = "Sproat CN&CO",
   na    = ""
 ) |>
+  # trim stray header whitespace, same as load_sproat_year(), before
+  # referencing the double-space "Co  NoMark" column by name
+  rename_with(trimws) |>
   mutate(
-    date   = as.Date(Date),
-    julian = safe_julian(date),
-    Co     = as.numeric(Coho),
-    year   = as.integer(CURRENT_YEAR)
+    date      = as.Date(Date),
+    julian    = safe_julian(date),
+    co_nomark = as.numeric(`Co  NoMark`),
+    year      = as.integer(CURRENT_YEAR)
   ) |>
   filter(!is.na(date)) |>
   arrange(date) |>
-  mutate(cum_count = cumsum(replace_na(Co, 0))) |>
-  select(year, date, julian, Co, cum_count)
+  mutate(cum_count_nomark = cumsum(replace_na(co_nomark, 0))) |>
+  select(year, date, julian, co_nomark, cum_count_nomark)
 
 # =============================================================================
 # 10. SHARED PLOT ELEMENTS
@@ -592,7 +595,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
 # Call it
 # -----------------------------------------------------------------------------
 p_current_coho <- build_current_plot(
-  sproatCurrent, "cum_count",
+  sproatCurrent, "cum_count_nomark",
   "Sproat River Adult Unmarked Coho",
   "SproatCoho_Current2026.png",
   hist_data = sproatHistPadded
