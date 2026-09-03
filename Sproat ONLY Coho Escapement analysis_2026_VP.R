@@ -262,9 +262,10 @@ sproatCurrent <- read_xlsx(
 # 10. SHARED PLOT ELEMENTS
 # =============================================================================
 
-ribbon_light <- "#c9756e"    # below Sgen        — muted terracotta red
-ribbon_mid   <- "#d4a843"    # Sgen–Smsy         — muted amber
-ribbon_dark  <- "#2D6A4F"    # above Smsy        — teal-green
+ribbon_light   <- "#c9756e"    # below Sgen        — muted terracotta red
+ribbon_mid     <- "#d4a843"    # Sgen–Smsy         — muted amber
+ribbon_dark    <- "#2D6A4F"    # Smsy–Smax         — teal-green
+ribbon_darkest <- "#1e4634"    # above Smax        — deep forest green
 
 # =============================================================================
 # 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
@@ -278,10 +279,10 @@ S_msy <- 3691   # The spawner abundance that maximizes long-term sustainable cat
 S_max <- 9636 #The spawner abundance that produces the largest
 #possible number of recruits
 
-col_gen <- ribbon_light   # below Sgen
-col_mid <- ribbon_mid     # Sgen–Smsy
-col_msy <- ribbon_dark    # above Smsy
-col_max <- "#2b2b2b"      # Smax reference line — Charcoal, info-only (no zone)
+col_gen <- ribbon_light      # below Sgen
+col_mid <- ribbon_mid        # Sgen–Smsy
+col_msy <- ribbon_dark       # Smsy–Smax
+col_max <- ribbon_darkest    # above Smax
 
 # cum_count is monotonic non-decreasing within a season, so each threshold
 # is crossed at most once; if never reached, returns NA rather than -Inf.
@@ -297,11 +298,11 @@ get_crossing <- function(julian, count, threshold) {
 }
 
 zone_data <- tibble(
-  ymin = c(-Inf, S_gen, S_msy),
-  ymax = c(S_gen, S_msy, Inf),
+  ymin = c(-Inf, S_gen, S_msy, S_max),
+  ymax = c(S_gen, S_msy, S_max, Inf),
   zone = factor(
-    c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (> Smsy)"),
-    levels = c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (> Smsy)")
+    c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (Smsy–Smax)", "Above Smax"),
+    levels = c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (Smsy–Smax)", "Above Smax")
   )
 )
 
@@ -319,11 +320,12 @@ build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
       zone = case_when(
         count_val < S_gen ~ "Critical (< Sgen)",
         count_val < S_msy ~ "Cautious (Sgen–Smsy)",
-        TRUE              ~ "Healthy (> Smsy)"
+        count_val < S_max ~ "Healthy (Smsy–Smax)",
+        TRUE              ~ "Above Smax"
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-  
+
   bench_dates <- pd |>
     group_by(year) |>
     arrange(julian, .by_group = TRUE) |>
@@ -353,7 +355,8 @@ build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
       values = c(
         "Critical (< Sgen)"    = col_gen,
         "Cautious (Sgen–Smsy)" = col_mid,
-        "Healthy (> Smsy)"     = col_msy
+        "Healthy (Smsy–Smax)"  = col_msy,
+        "Above Smax"           = col_max
       ),
       name = NULL
     ) +
@@ -453,11 +456,12 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       zone = case_when(
         count_val < S_gen ~ "Critical (< Sgen)",
         count_val < S_msy ~ "Cautious (Sgen–Smsy)",
-        TRUE              ~ "Healthy (> Smsy)"
+        count_val < S_max ~ "Healthy (Smsy–Smax)",
+        TRUE              ~ "Above Smax"
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-  
+
   # start the x-axis at the first day count is actually > 0, not a fixed day
   start_julian <- min(pd$julian[pd$count_val > 0], na.rm = TRUE)
   x_breaks <- scales::breaks_pretty(n = 10)(c(start_julian, JULIAN_END))
@@ -478,7 +482,8 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       values = c(
         "Critical (< Sgen)"    = ribbon_light,
         "Cautious (Sgen–Smsy)" = ribbon_mid,
-        "Healthy (> Smsy)"     = ribbon_dark
+        "Healthy (Smsy–Smax)"  = ribbon_dark,
+        "Above Smax"           = ribbon_darkest
       ),
       name = NULL
     ) +
