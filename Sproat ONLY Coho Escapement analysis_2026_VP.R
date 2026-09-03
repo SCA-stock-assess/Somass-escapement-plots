@@ -495,22 +495,9 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
   # count_col being plotted so current year and history are directly
   # comparable (e.g. cum_count vs cum_count, not cum_count vs cum_count_mark)
   hist_summary <- NULL
-  hist_caption <- NULL
   if (!is.null(hist_data)) {
     curr_yr <- max(current_data$year, na.rm = TRUE)
     yr_lo   <- if (is.null(hist_years)) -Inf else curr_yr - hist_years
-
-    hist_years_used <- hist_data |>
-      filter(year >= yr_lo, year < curr_yr) |>
-      distinct(year) |>
-      pull(year) |>
-      sort()
-
-    hist_caption <- paste0(
-      "Bands mark Sgen/Smsy/Smax zones; dashed blue line and shaded band show the ",
-      min(hist_years_used), "–", max(hist_years_used),
-      " historic mean and 5–95% range (loess-smoothed)"
-    )
 
     hist_summary <- hist_data |>
       filter(year >= yr_lo, year < curr_yr,
@@ -579,8 +566,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     ) +
     labs(
       x = "",
-      title = plot_title,
-      subtitle = hist_caption
+      title = plot_title
     ) +
     theme_classic() +
     theme(
