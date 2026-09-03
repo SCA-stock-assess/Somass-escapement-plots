@@ -277,8 +277,13 @@ hist_avg_colour <- "#4a6fa5"   # historic-average comparison line/ribbon
 # a binomial GLM, which would be statistically invalid on unbounded counts.
 # loess is the generic analogue: no boundedness assumption, same "smooth the
 # noisy day-to-day historic estimate" purpose.
+# surface = "direct" avoids predict.loess() returning NA at some x values --
+# the default "interpolate" surface fits on a coarse grid and can produce NA
+# in low-variance stretches (e.g. the l95/u95 ribbon late in the season, once
+# most historic years have flatlined at their padded final count), which
+# geom_ribbon() then silently drops, breaking the ribbon mid-plot.
 count_smooth <- function(y, x, span = 0.3) {
-  predict(loess(y ~ x, span = span))
+  predict(loess(y ~ x, span = span, control = loess.control(surface = "direct")))
 }
 
 # =============================================================================
