@@ -247,24 +247,44 @@ sproatCurrent <- read_xlsx(
   sheet = "Sproat CN&CO",
   na    = ""
 ) |>
+  # trim stray header whitespace, same as load_sproat_year(), before
+  # referencing the double-space "Co  NoMark" column by name
+  rename_with(trimws) |>
   mutate(
-    date   = as.Date(Date),
-    julian = safe_julian(date),
-    Co     = as.numeric(Coho),
-    year   = as.integer(CURRENT_YEAR)
+    date      = as.Date(Date),
+    julian    = safe_julian(date),
+    co_nomark = as.numeric(`Co  NoMark`),
+    year      = as.integer(CURRENT_YEAR)
   ) |>
   filter(!is.na(date)) |>
   arrange(date) |>
-  mutate(cum_count = cumsum(replace_na(Co, 0))) |>
-  select(year, date, julian, Co, cum_count)
+  mutate(cum_count_nomark = cumsum(replace_na(co_nomark, 0))) |>
+  select(year, date, julian, co_nomark, cum_count_nomark)
 
 # =============================================================================
 # 10. SHARED PLOT ELEMENTS
 # =============================================================================
 
-ribbon_light <- "#c9756e"    # below Sgen        — muted terracotta red
-ribbon_mid   <- "#d4a843"    # Sgen–Smsy         — muted amber
-ribbon_dark  <- "#2D6A4F"    # above Smsy        — teal-green
+ribbon_light   <- "#c9756e"    # below Sgen        — muted terracotta red
+ribbon_mid     <- "#d4a843"    # Sgen–Smsy         — muted amber
+ribbon_dark    <- "#74C69D"    # Smsy–Smax         — light green
+ribbon_darkest <- "#1B4332"    # above Smax        — darkest green
+hist_avg_colour <- "#4a6fa5"   # historic-average comparison line/ribbon
+
+# Smooths the historic mean/ribbon boundaries across julian day. Coho's
+# 5-95% range here is raw counts (unbounded), not proportions -- Chinook's
+# logit_smooth() (ChinookEscapement2026.R) assumes a [0,1]-bounded value via
+# a binomial GLM, which would be statistically invalid on unbounded counts.
+# loess is the generic analogue: no boundedness assumption, same "smooth the
+# noisy day-to-day historic estimate" purpose.
+# surface = "direct" avoids predict.loess() returning NA at some x values --
+# the default "interpolate" surface fits on a coarse grid and can produce NA
+# in low-variance stretches (e.g. the l95/u95 ribbon late in the season, once
+# most historic years have flatlined at their padded final count), which
+# geom_ribbon() then silently drops, breaking the ribbon mid-plot.
+count_smooth <- function(y, x, span = 0.3) {
+  predict(loess(y ~ x, span = span, control = loess.control(surface = "direct")))
+}
 
 # =============================================================================
 # 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
@@ -278,10 +298,10 @@ S_msy <- 3691   # The spawner abundance that maximizes long-term sustainable cat
 S_max <- 9636 #The spawner abundance that produces the largest
 #possible number of recruits
 
-col_gen <- ribbon_light   # below Sgen
-col_mid <- ribbon_mid     # Sgen–Smsy
-col_msy <- ribbon_dark    # above Smsy
-col_max <- "#2b2b2b"      # Smax reference line — Charcoal, info-only (no zone)
+col_gen <- ribbon_light      # below Sgen
+col_mid <- ribbon_mid        # Sgen–Smsy
+col_msy <- ribbon_dark       # Smsy–Smax
+col_max <- ribbon_darkest    # above Smax
 
 # cum_count is monotonic non-decreasing within a season, so each threshold
 # is crossed at most once; if never reached, returns NA rather than -Inf.
@@ -297,11 +317,11 @@ get_crossing <- function(julian, count, threshold) {
 }
 
 zone_data <- tibble(
-  ymin = c(-Inf, S_gen, S_msy),
-  ymax = c(S_gen, S_msy, Inf),
+  ymin = c(-Inf, S_gen, S_msy, S_max),
+  ymax = c(S_gen, S_msy, S_max, Inf),
   zone = factor(
-    c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (> Smsy)"),
-    levels = c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (> Smsy)")
+    c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (Smsy–Smax)", "Above Smax"),
+    levels = c("Critical (< Sgen)", "Cautious (Sgen–Smsy)", "Healthy (Smsy–Smax)", "Above Smax")
   )
 )
 
@@ -319,11 +339,12 @@ build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
       zone = case_when(
         count_val < S_gen ~ "Critical (< Sgen)",
         count_val < S_msy ~ "Cautious (Sgen–Smsy)",
-        TRUE              ~ "Healthy (> Smsy)"
+        count_val < S_max ~ "Healthy (Smsy–Smax)",
+        TRUE              ~ "Above Smax"
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-  
+
   bench_dates <- pd |>
     group_by(year) |>
     arrange(julian, .by_group = TRUE) |>
@@ -353,7 +374,8 @@ build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
       values = c(
         "Critical (< Sgen)"    = col_gen,
         "Cautious (Sgen–Smsy)" = col_mid,
-        "Healthy (> Smsy)"     = col_msy
+        "Healthy (Smsy–Smax)"  = col_msy,
+        "Above Smax"           = col_max
       ),
       name = NULL
     ) +
@@ -443,8 +465,15 @@ p_ridge_nomark <- build_ridge_plot(
 #     ribbon_mid, ribbon_dark (all set in section 10)
 # =============================================================================
 
-build_current_plot <- function(current_data, count_col, plot_title, file_out) {
-  
+#   hist_data:   optional historic data frame (e.g. sproatHistPadded) used
+#                to draw a historic-average comparison line + 5-95% shaded
+#                range, in the same style as the Stamp Chinook timing plot's
+#                historic-mean overlay. NULL (default) omits it entirely.
+#   hist_years:  number of most recent historic years to average over;
+#                NULL (default) uses every year available in hist_data.
+build_current_plot <- function(current_data, count_col, plot_title, file_out,
+                                hist_data = NULL, hist_years = NULL) {
+
   pd <- current_data |>
     filter(!is.na(julian)) |>
     arrange(julian) |>
@@ -453,11 +482,12 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       zone = case_when(
         count_val < S_gen ~ "Critical (< Sgen)",
         count_val < S_msy ~ "Cautious (Sgen–Smsy)",
-        TRUE              ~ "Healthy (> Smsy)"
+        count_val < S_max ~ "Healthy (Smsy–Smax)",
+        TRUE              ~ "Above Smax"
       ),
       zone = factor(zone, levels = levels(zone_data$zone))
     )
-  
+
   # start the x-axis at the first day count is actually > 0, not a fixed day
   start_julian <- min(pd$julian[pd$count_val > 0], na.rm = TRUE)
   x_breaks <- scales::breaks_pretty(n = 10)(c(start_julian, JULIAN_END))
@@ -465,7 +495,33 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
   
   #label for the current count
   tip <- pd %>%  slice_max(julian, n=1, with_ties = FALSE)
-  
+
+  # historic-average comparison line + 5-95% range, computed on the same
+  # count_col being plotted so current year and history are directly
+  # comparable (e.g. cum_count vs cum_count, not cum_count vs cum_count_mark)
+  hist_summary <- NULL
+  if (!is.null(hist_data)) {
+    curr_yr <- max(current_data$year, na.rm = TRUE)
+    yr_lo   <- if (is.null(hist_years)) -Inf else curr_yr - hist_years
+
+    hist_summary <- hist_data |>
+      filter(year >= yr_lo, year < curr_yr,
+             julian >= start_julian, julian <= JULIAN_END) |>
+      group_by(julian) |>
+      summarise(
+        hist_mean = mean(.data[[count_col]], na.rm = TRUE),
+        l95       = quantile(.data[[count_col]], 0.05, na.rm = TRUE),
+        u95       = quantile(.data[[count_col]], 0.95, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      arrange(julian) |>
+      mutate(
+        hist_mean_smooth = count_smooth(hist_mean, julian),
+        l95_smooth       = count_smooth(l95, julian),
+        u95_smooth       = count_smooth(u95, julian)
+      )
+  }
+
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
     geom_rect(
@@ -478,11 +534,24 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
       values = c(
         "Critical (< Sgen)"    = ribbon_light,
         "Cautious (Sgen–Smsy)" = ribbon_mid,
-        "Healthy (> Smsy)"     = ribbon_dark
+        "Healthy (Smsy–Smax)"  = ribbon_dark,
+        "Above Smax"           = ribbon_darkest
       ),
       name = NULL
     ) +
-    geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.85) +
+    geom_line(colour = "#333333", linewidth = 0.9) +
+    { if (!is.null(hist_summary))
+        geom_ribbon(
+          data = hist_summary, aes(x = julian, ymin = l95_smooth, ymax = u95_smooth),
+          inherit.aes = FALSE, fill = hist_avg_colour, alpha = 0.12
+        )
+    } +
+    { if (!is.null(hist_summary))
+        geom_line(
+          data = hist_summary, aes(x = julian, y = hist_mean_smooth),
+          inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
+        )
+    } +
     geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
     geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
@@ -496,12 +565,13 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
     ) +
     scale_y_continuous(
       name = "Escapement",
-      labels = scales::comma, 
+      labels = scales::comma,
+      limits = c(0, 12000),
       breaks = scales::breaks_pretty(n = 6)
     ) +
     labs(
       x = "",
-      title = plot_title,
+      title = plot_title
     ) +
     theme_classic() +
     theme(
@@ -526,9 +596,10 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
 # Call it
 # -----------------------------------------------------------------------------
 p_current_coho <- build_current_plot(
-  sproatCurrent, "cum_count",
+  sproatCurrent, "cum_count_nomark",
   "Sproat River Adult Unmarked Coho",
-  "SproatCoho_Current2026.png"
+  "SproatCoho_Current2026.png",
+  hist_data = sproatHistPadded
 )
 
 # -----------------------------------------------------------------------------
