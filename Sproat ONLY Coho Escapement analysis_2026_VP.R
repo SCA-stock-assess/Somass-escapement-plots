@@ -566,9 +566,9 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     scale_y_continuous(
       name = "Escapement",
       labels = scales::comma,
-      limits = c(0, 12000),
+      limits = c(0, 15000),
       # loess can overshoot the actual data range near curve boundaries;
-      # squish (clamp) values outside the 0-12000 axis limits to the nearest
+      # squish (clamp) values outside the 0-15000 axis limits to the nearest
       # limit instead of ggplot's default of censoring them to NA and
       # dropping the row -- the default was silently punching holes in the
       # historic-average ribbon/line wherever the smoothed curve overshot.
