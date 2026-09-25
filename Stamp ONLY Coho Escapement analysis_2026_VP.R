@@ -1,6 +1,6 @@
 # =============================================================================
 # Stamp River Coho Escapement — Load, Wrangle & Plot
-# Historical:  2016–2025 
+# Historical:  2016–2025
 # Current:     Daily Totals by Age (in-season, updated weekly)
 # =============================================================================
 
@@ -269,8 +269,6 @@ StampCurrent <- read_xlsx(
          CohoTotal, CohoMarked, CohoNotMarked,
          cum_count, cum_count_mark, cum_count_nomark)
 
-
-
 # =============================================================================
 # 10. SHARED PLOT ELEMENTS
 # =============================================================================
@@ -297,8 +295,9 @@ count_smooth <- function(y, x, span = 0.3) {
 }
 
 # =============================================================================
-# 11. BENCHMARK RIDGE PLOT BUILDER — escapement vs. Sgen / Smsy by year
-#
+# 11. ESCAPEMENT BENCHMARKS & ZONE DEFINITIONS
+#     Shared by the current-year plot builder (section 12, the main output of
+#     this script) and by the ridge plot builder at the very end of the file.
 # =============================================================================
 
 S_gen <- 1421   # Using RCH ER
@@ -332,143 +331,16 @@ zone_data <- tibble(
   )
 )
 
-# count_col:   name of the cumulative-count column to plot
-#              (e.g. "cum_count_mark" or "cum_count_nomark")
-# plot_title:  main title text
-# file_out:    PNG filename to save to
-build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
-  
-  pd <- hist_data |>
-    filter(!is.na(julian), julian >= 225) |>
-    mutate(
-      year      = factor(year),
-      count_val = .data[[count_col]],
-      zone = case_when(
-        count_val < S_gen ~ "Critical (< Sgen)",
-        count_val < S_msy ~ "Cautious (Sgen–Smsy)",
-        count_val < S_max ~ "Healthy (Smsy–Smax)",
-        TRUE              ~ "Above Smax"
-      ),
-      zone = factor(zone, levels = levels(zone_data$zone))
-    )
-  
-  bench_dates <- pd |>
-    group_by(year) |>
-    arrange(julian, .by_group = TRUE) |>
-    summarise(
-      gen_julian = get_crossing(julian, count_val, S_gen),
-      msy_julian = get_crossing(julian, count_val, S_msy),
-      .groups = "drop"
-    ) |>
-    mutate(
-      gen_count = S_gen,
-      msy_count = S_msy,
-      gen_label = if_else(is.na(gen_julian), "Not reached",
-                          format(as.Date(gen_julian - 1, origin = "2001-01-01"), "%b %d")),
-      msy_label = if_else(is.na(msy_julian), "Not reached",
-                          format(as.Date(msy_julian - 1, origin = "2001-01-01"), "%b %d"))
-    )
-  
-  p <- pd |>
-    ggplot(aes(x = julian, y = count_val)) +
-    geom_rect(
-      data = zone_data,
-      aes(ymin = ymin, ymax = ymax, fill = zone),
-      xmin = -Inf, xmax = Inf,
-      inherit.aes = FALSE, alpha = 0.15
-    ) +
-    scale_fill_manual(
-      values = c(
-        "Critical (< Sgen)"    = col_gen,
-        "Cautious (Sgen–Smsy)" = col_mid,
-        "Healthy (Smsy–Smax)"  = col_msy,
-        "Above Smax"           = col_max
-      ),
-      name = NULL
-    ) +
-    geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.5) +
-    geom_hline(yintercept = S_gen, colour = col_gen, linewidth = 0.45, linetype = "dashed") +
-    geom_hline(yintercept = S_msy, colour = col_msy, linewidth = 0.45, linetype = "dashed") +
-    geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
-    geom_point(
-      data = filter(bench_dates, !is.na(gen_julian)),
-      aes(x = gen_julian, y = gen_count), inherit.aes = FALSE,
-      colour = col_gen, size = 2.2
-    ) +
-    geom_text(
-      data = filter(bench_dates, !is.na(gen_julian)),
-      aes(x = gen_julian, y = gen_count, label = gen_label), inherit.aes = FALSE,
-      hjust = -0.12, vjust = 1.4, size = 2.9, colour = col_gen, fontface = "bold"
-    ) +
-    geom_point(
-      data = filter(bench_dates, !is.na(msy_julian)),
-      aes(x = msy_julian, y = msy_count), inherit.aes = FALSE,
-      colour = col_msy, size = 2.2
-    ) +
-    geom_text(
-      data = filter(bench_dates, !is.na(msy_julian)),
-      aes(x = msy_julian, y = msy_count, label = msy_label), inherit.aes = FALSE,
-      hjust = -0.12, vjust = -0.6, size = 2.9, colour = col_msy, fontface = "bold"
-    ) +
-    scale_x_continuous(
-      limits = c(225, JULIAN_END), expand = c(0, 0),
-      breaks = c(225, 250, 275, 300, 325),
-      labels = format(as.Date(c(225, 250, 275, 300, 325) - 1, origin = "2001-01-01"), "%b %d")
-    ) +
-    scale_y_continuous(
-      name = "Cumulative escapement",
-      labels = scales::comma, position = "right",
-    ) +
-    facet_wrap(~ year, ncol = 2, strip.position = "top") +
-    labs(
-      x = "",
-      title = plot_title,
-      subtitle = "Dashed lines mark Sgen, Smsy and Smax benchmarks; labels show the date Sgen/Smsy were reached"
-    ) +
-    theme_classic() +
-    theme(
-      strip.placement       = "outside",
-      strip.background      = element_blank(),
-      strip.text            = element_text(size = 11, colour = "#c0703a", face = "bold", hjust = 0),
-      panel.spacing         = unit(1, "lines"),
-      axis.text.x           = element_text(size = 8, colour = "#333333"),
-      axis.text.y           = element_text(size = 7.5, colour = "#333333"),
-      axis.title.y          = element_text(size = 9.5, colour = "#333333"),
-      axis.ticks.length     = unit(0.15, "cm"),
-      plot.title             = element_text(size = 15, colour = "#333333", face = "bold"),
-      plot.subtitle          = element_text(size = 9, colour = "#666666"),
-      plot.background        = element_rect(fill = "white", colour = NA),
-      legend.position         = "top",
-      legend.justification    = "left",
-      legend.margin           = margin(b = 5)
-    )
-  
-  print(p)
-  ggsave(file_out, p, width = 10, height = 12, dpi = 300)
-  p
-}
-
-# -----------------------------------------------------------------------------
-# 12. RIDGE PLOTS —  for Unmarked Coho Only
-# -----------------------------------------------------------------------------
-
-p_ridge_nomark <- build_ridge_plot(
-  StampHistPadded, "cum_count_nomark",
-  "Stamp River Adult Coho (Unmarked) — Escapement by Year",
-  "StampCohoRidge_NoMark.png"
-)
-
 # =============================================================================
-# ADD-ON: Stamp Coho Escapement — Current Year Only
-#   Uses the same S_gen / S_msy benchmarks, zone shading, and crossing-date
-#   logic as build_ridge_plot(), but for a single in-season year with no
-#   facet_wrap (only one year) and no padding to JULIAN_END, since the
-#   current season isn't complete yet — the line simply stops at the
-#   latest available observation.
+# 12. CURRENT-YEAR PLOT BUILDER — the main, everyday output of this script
+#   Uses the Sgen / Smsy / Smax benchmarks and zone shading defined above for
+#   a single in-season year, with no facet_wrap and no padding to JULIAN_END,
+#   since the current season isn't complete yet — the line simply stops at
+#   the latest available observation.
 #
 #   Depends on objects already defined earlier in the script:
-#     S_gen, S_msy, zone_data, JULIAN_END, sproatCurrent, ribbon_light,
-#     ribbon_mid, ribbon_dark (all set in section 10)
+#     S_gen, S_msy, zone_data, JULIAN_END, StampCurrent, ribbon_light,
+#     ribbon_mid, ribbon_dark (all set in sections 10-11)
 # =============================================================================
 
 #   hist_data:   optional historic data frame (e.g. StampHistPadded) used
@@ -660,3 +532,132 @@ ggplot(plot_dat, aes(x = plot_julian, y = factor(year), color = status)) +
         panel.grid.major.y = element_blank(),
         panel.border = element_blank(),
         axis.line = element_line(colour = "grey40"))
+
+# =============================================================================
+# RIDGE PLOT — full historic-year facet view (secondary output)
+#   Shows every historic year side by side against the Sgen/Smsy/Smax
+#   benchmarks. Kept at the end of the script since it's not needed for the
+#   routine current-year update above and doesn't need to run every time.
+# =============================================================================
+
+# count_col:   name of the cumulative-count column to plot
+#              (e.g. "cum_count_mark" or "cum_count_nomark")
+# plot_title:  main title text
+# file_out:    PNG filename to save to
+build_ridge_plot <- function(hist_data, count_col, plot_title, file_out) {
+
+  pd <- hist_data |>
+    filter(!is.na(julian), julian >= 225) |>
+    mutate(
+      year      = factor(year),
+      count_val = .data[[count_col]],
+      zone = case_when(
+        count_val < S_gen ~ "Critical (< Sgen)",
+        count_val < S_msy ~ "Cautious (Sgen–Smsy)",
+        count_val < S_max ~ "Healthy (Smsy–Smax)",
+        TRUE              ~ "Above Smax"
+      ),
+      zone = factor(zone, levels = levels(zone_data$zone))
+    )
+
+  bench_dates <- pd |>
+    group_by(year) |>
+    arrange(julian, .by_group = TRUE) |>
+    summarise(
+      gen_julian = get_crossing(julian, count_val, S_gen),
+      msy_julian = get_crossing(julian, count_val, S_msy),
+      .groups = "drop"
+    ) |>
+    mutate(
+      gen_count = S_gen,
+      msy_count = S_msy,
+      gen_label = if_else(is.na(gen_julian), "Not reached",
+                          format(as.Date(gen_julian - 1, origin = "2001-01-01"), "%b %d")),
+      msy_label = if_else(is.na(msy_julian), "Not reached",
+                          format(as.Date(msy_julian - 1, origin = "2001-01-01"), "%b %d"))
+    )
+
+  p <- pd |>
+    ggplot(aes(x = julian, y = count_val)) +
+    geom_rect(
+      data = zone_data,
+      aes(ymin = ymin, ymax = ymax, fill = zone),
+      xmin = -Inf, xmax = Inf,
+      inherit.aes = FALSE, alpha = 0.15
+    ) +
+    scale_fill_manual(
+      values = c(
+        "Critical (< Sgen)"    = col_gen,
+        "Cautious (Sgen–Smsy)" = col_mid,
+        "Healthy (Smsy–Smax)"  = col_msy,
+        "Above Smax"           = col_max
+      ),
+      name = NULL
+    ) +
+    geom_area(fill = "grey40", alpha = 0.12, colour = "#4B5563", linewidth = 0.5) +
+    geom_hline(yintercept = S_gen, colour = col_gen, linewidth = 0.45, linetype = "dashed") +
+    geom_hline(yintercept = S_msy, colour = col_msy, linewidth = 0.45, linetype = "dashed") +
+    geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
+    geom_point(
+      data = filter(bench_dates, !is.na(gen_julian)),
+      aes(x = gen_julian, y = gen_count), inherit.aes = FALSE,
+      colour = col_gen, size = 2.2
+    ) +
+    geom_text(
+      data = filter(bench_dates, !is.na(gen_julian)),
+      aes(x = gen_julian, y = gen_count, label = gen_label), inherit.aes = FALSE,
+      hjust = -0.12, vjust = 1.4, size = 2.9, colour = col_gen, fontface = "bold"
+    ) +
+    geom_point(
+      data = filter(bench_dates, !is.na(msy_julian)),
+      aes(x = msy_julian, y = msy_count), inherit.aes = FALSE,
+      colour = col_msy, size = 2.2
+    ) +
+    geom_text(
+      data = filter(bench_dates, !is.na(msy_julian)),
+      aes(x = msy_julian, y = msy_count, label = msy_label), inherit.aes = FALSE,
+      hjust = -0.12, vjust = -0.6, size = 2.9, colour = col_msy, fontface = "bold"
+    ) +
+    scale_x_continuous(
+      limits = c(225, JULIAN_END), expand = c(0, 0),
+      breaks = c(225, 250, 275, 300, 325),
+      labels = format(as.Date(c(225, 250, 275, 300, 325) - 1, origin = "2001-01-01"), "%b %d")
+    ) +
+    scale_y_continuous(
+      name = "Cumulative escapement",
+      labels = scales::comma
+    ) +
+    facet_wrap(~ year, ncol = 2, strip.position = "top") +
+    labs(
+      x = "",
+      title = plot_title,
+      subtitle = "Dashed lines mark Sgen, Smsy and Smax benchmarks; labels show the date Sgen/Smsy were reached"
+    ) +
+    theme_classic() +
+    theme(
+      strip.placement       = "outside",
+      strip.background      = element_blank(),
+      strip.text            = element_text(size = 11, colour = "#c0703a", face = "bold", hjust = 0),
+      panel.spacing         = unit(1, "lines"),
+      axis.text.x           = element_text(size = 8, colour = "#333333"),
+      axis.text.y           = element_text(size = 7.5, colour = "#333333"),
+      axis.title.y          = element_text(size = 9.5, colour = "#333333"),
+      axis.ticks.length     = unit(0.15, "cm"),
+      plot.title             = element_text(size = 15, colour = "#333333", face = "bold"),
+      plot.subtitle          = element_text(size = 9, colour = "#666666"),
+      plot.background        = element_rect(fill = "white", colour = NA),
+      legend.position         = "top",
+      legend.justification    = "left",
+      legend.margin           = margin(b = 5)
+    )
+
+  print(p)
+  ggsave(file_out, p, width = 10, height = 12, dpi = 300)
+  p
+}
+
+p_ridge_nomark <- build_ridge_plot(
+  StampHistPadded, "cum_count_nomark",
+  "Stamp River Adult Coho (Unmarked) — Escapement by Year",
+  "StampCohoRidge_NoMark.png"
+)
