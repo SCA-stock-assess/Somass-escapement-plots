@@ -477,22 +477,19 @@ p_ridge_nomark <- build_ridge_plot(
 #                historic-mean overlay. NULL (default) omits it entirely.
 #   hist_years:  number of most recent historic years to average over;
 #                NULL (default) uses every year available in hist_data.
+#   show_zones:  draw the Sgen/Smsy/Smax zone bands + benchmark lines and
+#                fix the y-axis to 0-15000. TRUE (default) for total/unmarked
+#                counts, which the benchmarks were derived for; FALSE for
+#                marked-only counts, where those benchmarks don't apply and
+#                the y-axis is left to auto-scale to the (much smaller) data.
 build_current_plot <- function(current_data, count_col, plot_title, file_out,
-                                hist_data = NULL, hist_years = NULL) {
+                                hist_data = NULL, hist_years = NULL,
+                                show_zones = TRUE) {
 
   pd <- current_data |>
     filter(!is.na(julian)) |>
     arrange(julian) |>
-    mutate(
-      count_val = .data[[count_col]],
-      zone = case_when(
-        count_val < S_gen ~ "Critical (< Sgen)",
-        count_val < S_msy ~ "Cautious (Sgen–Smsy)",
-        count_val < S_max ~ "Healthy (Smsy–Smax)",
-        TRUE              ~ "Above Smax"
-      ),
-      zone = factor(zone, levels = levels(zone_data$zone))
-    )
+    mutate(count_val = .data[[count_col]])
 
   # start the x-axis at the first day count is actually > 0, not a fixed day
   start_julian <- min(pd$julian[pd$count_val > 0], na.rm = TRUE)
@@ -530,21 +527,25 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
 
   p <- pd |>
     ggplot(aes(x = julian, y = count_val)) +
-    geom_rect(
-      data = zone_data,
-      aes(ymin = ymin, ymax = ymax, fill = zone),
-      xmin = -Inf, xmax = Inf,
-      inherit.aes = FALSE, alpha = 0.15
-    ) +
-    scale_fill_manual(
-      values = c(
-        "Critical (< Sgen)"    = ribbon_light,
-        "Cautious (Sgen–Smsy)" = ribbon_mid,
-        "Healthy (Smsy–Smax)"  = ribbon_dark,
-        "Above Smax"           = ribbon_darkest
-      ),
-      name = NULL
-    ) +
+    { if (show_zones)
+        geom_rect(
+          data = zone_data,
+          aes(ymin = ymin, ymax = ymax, fill = zone),
+          xmin = -Inf, xmax = Inf,
+          inherit.aes = FALSE, alpha = 0.15
+        )
+    } +
+    { if (show_zones)
+        scale_fill_manual(
+          values = c(
+            "Critical (< Sgen)"    = ribbon_light,
+            "Cautious (Sgen–Smsy)" = ribbon_mid,
+            "Healthy (Smsy–Smax)"  = ribbon_dark,
+            "Above Smax"           = ribbon_darkest
+          ),
+          name = NULL
+        )
+    } +
     geom_line(colour = "#333333", linewidth = 0.9) +
     { if (!is.null(hist_summary))
         geom_ribbon(
@@ -558,9 +559,15 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
           inherit.aes = FALSE, colour = hist_avg_colour, linewidth = 0.9, linetype = "dashed"
         )
     } +
-    geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed") +
-    geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed") +
-    geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed") +
+    { if (show_zones)
+        geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed")
+    } +
+    { if (show_zones)
+        geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed")
+    } +
+    { if (show_zones)
+        geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed")
+    } +
     geom_point(data = tip, size=2, color="#333333") +
     geom_text(data = tip, aes(label=scales::comma(count_val)),
                               hjust=-0.15,vjust=0.5, size=3.3, color="#333333") +
@@ -572,12 +579,13 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     scale_y_continuous(
       name = "Escapement",
       labels = scales::comma,
-      limits = c(0, 15000),
+      limits = if (show_zones) c(0, 15000) else NULL,
       # loess can overshoot the actual data range near curve boundaries;
-      # squish (clamp) values outside the 0-15000 axis limits to the nearest
-      # limit instead of ggplot's default of censoring them to NA and
-      # dropping the row -- the default was silently punching holes in the
-      # historic-average ribbon/line wherever the smoothed curve overshot.
+      # squish (clamp) values outside fixed axis limits to the nearest limit
+      # instead of ggplot's default of censoring them to NA and dropping the
+      # row -- the default was silently punching holes in the historic-
+      # average ribbon/line wherever the smoothed curve overshot. Harmless
+      # (never triggers) when limits is NULL and the scale auto-ranges.
       oob = scales::oob_squish,
       breaks = scales::breaks_pretty(n = 6)
     ) +
@@ -607,19 +615,25 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
 # -----------------------------------------------------------------------------
 # Call it
 # -----------------------------------------------------------------------------
-#StampMarked <- build_current_plot(
-#  StampCurrent, "cum_count_mark",
-# "Stamp River Adult Marked Coho",
-# "StampRiverMarkedCoho.png"
-#)
-
-
 StampUnMarked <- build_current_plot(
   StampCurrent, "cum_count_nomark",
   "Stamp River Adult Unmarked Coho",
   "StampRiverUnMarkedCoho.png",
   hist_data = StampHistPadded
 )
+
+# Marked coho has no Sgen/Smsy/Smax benchmarks of its own (those are derived
+# for total/unmarked escapement) -- show_zones = FALSE drops the zone bands
+# and benchmark lines and lets the y-axis auto-scale instead of using the
+# fixed 0-15000 range set up for the unmarked plot.
+StampMarked <- build_current_plot(
+  StampCurrent, "cum_count_mark",
+  "Stamp River Adult Marked Coho",
+  "StampRiverMarkedCoho.png",
+  hist_data = StampHistPadded,
+  show_zones = FALSE
+)
+
 # -----------------------------------------------------------------------------
 # Probability of reaching smsy by Mid-September
 # -----------------------------------------------------------------------------
