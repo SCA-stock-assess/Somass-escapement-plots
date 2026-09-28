@@ -186,12 +186,10 @@ build_cn_timing_plot <- function(hist_data, current_data, curr_year,
     geom_hline(
       yintercept = 1, linetype = "dashed", colour = target_colour, linewidth = 0.5
     ) +
-    geom_textline(
+    geom_line(
       data = current_input,
       aes(date, prop_of_target),
-      label = as.character(curr_year),
-      colour = curr_colour, hjust = 0.7, vjust = 0.8,
-      linewidth = 1.6, text_smoothing = 60
+      colour = curr_colour, linewidth = 1.6
     ) +
     geom_point(
       data = latest_point,
