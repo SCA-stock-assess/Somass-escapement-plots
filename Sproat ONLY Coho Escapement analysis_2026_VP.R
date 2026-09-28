@@ -489,7 +489,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
 p_current_coho <- build_current_plot(
   sproatCurrent, "cum_count_nomark",
   "Sproat River Adult Unmarked Coho",
-  "SproatCoho_Current2026.png",
+  "SproatRiverMarkedCoho2026.png",
   hist_data = sproatHistPadded
 )
 

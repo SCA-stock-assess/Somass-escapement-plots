@@ -501,7 +501,7 @@ StampUnMarked <- build_current_plot(
 StampMarked <- build_current_plot(
   StampCurrent, "cum_count_mark",
   "Stamp River Adult Marked Coho",
-  "StampRiverMarkedCoho.png",
+  "StampRiverMarkedCoho2026.png",
   hist_data = StampHistPadded,
   show_zones = FALSE
 )
