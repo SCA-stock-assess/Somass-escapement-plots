@@ -446,7 +446,24 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
       limits = c(start_julian, JULIAN_END), expand = c(0, 0),
       breaks = x_breaks,
       labels = format(as.Date(x_breaks - 1, origin = "2001-01-01"), "%b %d")
+    ) +     geom_texthline(
+      yintercept = S_gen, label = scales::comma(S_gen),
+      hjust = 0.95, vjust = -0.2, size = 3,
+      linewidth = 0.45, linetype = "dashed", colour = ribbon_light,
+      inherit.aes = FALSE
     ) +
+    geom_texthline(
+      yintercept = S_msy, label = scales::comma(S_msy),
+      hjust = 0.95, vjust = -0.2, size = 3,
+      linewidth = 0.45, linetype = "dashed", colour = ribbon_light,
+      inherit.aes = FALSE
+    ) +
+    geom_texthline(
+      yintercept = S_max, label = scales::comma(S_max),
+      hjust = 0.95, vjust = -0.2, size = 3,
+      linewidth = 0.45, linetype = "dashed", colour = ribbon_light,
+      inherit.aes = FALSE
+    ) +  
     scale_y_continuous(
       name = "Escapement",
       labels = scales::comma,
@@ -489,7 +506,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
 p_current_coho <- build_current_plot(
   sproatCurrent, "cum_count_nomark",
   "Sproat River Adult Unmarked Coho",
-  "SproatRiverMarkedCoho2026.png",
+  "SproatCoho_Current2026.png",
   hist_data = sproatHistPadded
 )
 
@@ -502,7 +519,8 @@ p_current_coho_mark <- build_current_plot(
   "Sproat River Adult Marked Coho",
   "SproatCoho_Current2026_Mark.png",
   hist_data = sproatHistPadded,
-  show_zones = FALSE
+  show_zones = FALSE,   show_benchmarks = FALSE
+
 )
 
 # -----------------------------------------------------------------------------
