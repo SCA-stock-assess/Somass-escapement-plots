@@ -401,9 +401,9 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
     { if (show_zones)
         geom_rect(
           data = zone_data,
-          aes(ymin = ymin, ymax = ymax, fill = zone),
+          aes(ymin = ymin, ymax = ymax, fill = zone, alpha = zone),
           xmin = -Inf, xmax = Inf,
-          inherit.aes = FALSE, alpha = 0.15
+          inherit.aes = FALSE
         )
     } +
     { if (show_zones)
@@ -415,6 +415,22 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
             "Above Smax"           = ribbon_darkest
           ),
           name = NULL
+        )
+    } +
+    { if (show_zones)
+        # Above Smax carries management implications (overescapement risk),
+        # so it needs to read as visibly darker/more serious than Healthy,
+        # not just have a technically-darker hex code -- at the same 0.15
+        # alpha used for the other zones, ribbon_darkest washes out to a
+        # pale grey-green indistinguishable in weight from ribbon_dark.
+        scale_alpha_manual(
+          values = c(
+            "Critical (< Sgen)"    = 0.15,
+            "Cautious (Sgen–Smsy)" = 0.15,
+            "Healthy (Smsy–Smax)"  = 0.15,
+            "Above Smax"           = 0.35
+          ),
+          guide = "none"
         )
     } +
     geom_line(colour = "#333333", linewidth = 0.9) +
@@ -434,10 +450,22 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
         geom_hline(yintercept = S_gen, colour = ribbon_light, linewidth = 0.45, linetype = "dashed")
     } +
     { if (show_zones)
+        annotate("text", x = JULIAN_END, y = S_gen, label = scales::comma(S_gen),
+                 hjust = 1, vjust = -0.4, size = 3, colour = ribbon_light)
+    } +
+    { if (show_zones)
         geom_hline(yintercept = S_msy, colour = ribbon_dark, linewidth = 0.45, linetype = "dashed")
     } +
     { if (show_zones)
+        annotate("text", x = JULIAN_END, y = S_msy, label = scales::comma(S_msy),
+                 hjust = 1, vjust = -0.4, size = 3, colour = ribbon_dark)
+    } +
+    { if (show_zones)
         geom_hline(yintercept = S_max, colour = col_max, linewidth = 0.45, linetype = "dashed")
+    } +
+    { if (show_zones)
+        annotate("text", x = JULIAN_END, y = S_max, label = scales::comma(S_max),
+                 hjust = 1, vjust = -0.4, size = 3, colour = col_max)
     } +
     geom_point(data = tip, size=2, color="#333333") +
     geom_text(data = tip, aes(label=scales::comma(count_val)),
@@ -446,24 +474,7 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out,
       limits = c(start_julian, JULIAN_END), expand = c(0, 0),
       breaks = x_breaks,
       labels = format(as.Date(x_breaks - 1, origin = "2001-01-01"), "%b %d")
-    ) +     geom_texthline(
-      yintercept = S_gen, label = scales::comma(S_gen),
-      hjust = 0.95, vjust = -0.2, size = 3,
-      linewidth = 0.45, linetype = "dashed", colour = ribbon_light,
-      inherit.aes = FALSE
     ) +
-    geom_texthline(
-      yintercept = S_msy, label = scales::comma(S_msy),
-      hjust = 0.95, vjust = -0.2, size = 3,
-      linewidth = 0.45, linetype = "dashed", colour = ribbon_light,
-      inherit.aes = FALSE
-    ) +
-    geom_texthline(
-      yintercept = S_max, label = scales::comma(S_max),
-      hjust = 0.95, vjust = -0.2, size = 3,
-      linewidth = 0.45, linetype = "dashed", colour = ribbon_light,
-      inherit.aes = FALSE
-    ) +  
     scale_y_continuous(
       name = "Escapement",
       labels = scales::comma,
@@ -519,8 +530,7 @@ p_current_coho_mark <- build_current_plot(
   "Sproat River Adult Marked Coho",
   "SproatCoho_Current2026_Mark.png",
   hist_data = sproatHistPadded,
-  show_zones = FALSE,   show_benchmarks = FALSE
-
+  show_zones = FALSE
 )
 
 # -----------------------------------------------------------------------------
