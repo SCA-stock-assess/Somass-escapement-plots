@@ -342,7 +342,7 @@ timing_plots |>
         curr_yr, "_MGT/Escapement plots/",
         curr_yr, "_Sk_cum-esc-timing_", .y, ".png"
       ),
-      height = 4.5,
+      height = 5.5,
       width  = 9,
       units  = "in"
     )
