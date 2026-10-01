@@ -320,14 +320,14 @@ ChinookSpagettiPlot <- build_cn_spaghetti_plot(
 )
 
 ggsave(
-  plot = ChinookSpagettiPlot,
+  plot = ChinookTimingPlot,
   filename = paste0(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "Fig4_", curr_year, "_ChinookSpagettiPlot.png"
+    "Fig4_", curr_year, "_ChinookTimingPlot.png"
   ),
-  height = 4.5,
-  width = 8,
+  height = 5.5,
+  width = 9,
   units = "in"
 )

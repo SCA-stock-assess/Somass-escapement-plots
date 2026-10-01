@@ -535,11 +535,11 @@ build_current_plot <- function(current_data, count_col, plot_title, file_out) {
 # -----------------------------------------------------------------------------
 # Call it
 # -----------------------------------------------------------------------------
-#StampMarked <- build_current_plot(
-#  StampCurrent, "cum_count_mark",
- # "Stamp River Adult Marked Coho",
- # "StampRiverMarkedCoho.png"
-#)
+StampMarked <- build_current_plot(
+  StampCurrent, "cum_count_mark",
+  "Stamp River Adult Marked Coho",
+  "StampRiverMarkedCoho.png"
+)
 
 
 StampUnMarked <- build_current_plot(
