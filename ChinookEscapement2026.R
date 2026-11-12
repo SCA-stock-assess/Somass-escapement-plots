@@ -283,7 +283,7 @@ build_cn_spaghetti_plot <- function(hist_data, current_data, curr_year,
       expand = expansion(mult = 0)
     ) +
     coord_cartesian(
-      xlim = as.Date(c(paste0(ANCHOR_YEAR, "-08-01"), paste0(ANCHOR_YEAR, "-10-20")))
+      xlim = as.Date(c(paste0(ANCHOR_YEAR, "-08-01"), paste0(ANCHOR_YEAR, "-10-30")))
     ) +
     scale_y_continuous(
       position = "right",
@@ -316,16 +316,16 @@ ChinookSpagettiPlot <- build_cn_spaghetti_plot(
   hist_data    = SomassEsc,
   current_data = CurrentYearEsc,
   curr_year    = curr_year,
-  hist_years   = 10
+  hist_years   = 9
 )
 
 ggsave(
-  plot = ChinookTimingPlot,
+  plot = ChinookSpagettiPlot,
   filename = paste0(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
     curr_year,
     "/A23/Escapement plot/",
-    "Fig4_", curr_year, "_ChinookTimingPlot.png"
+    "Fig4_", curr_year, "_ChinookSpagettiPlot.png"
   ),
   height = 5.5,
   width = 9,

@@ -135,10 +135,10 @@ current_year_esc <- bind_rows(
     cum_prop_adult = cum_adj_adults / ttl_adj_adults,
     cum_prop_jack  = cum_adj_jacks  / ttl_adj_jacks,
     stop.seq = case_when(
-      between(cum_prop_adult, 0.01, 0.5)  ~ ">1% date",
-      between(cum_prop_adult, 0.5,  0.99) ~ ">50% date",
-      cum_prop_adult >= 0.99              ~ ">99% date",
-      TRUE                                ~ "<1% date"
+      cum_prop_adult >= 0.99 ~ ">99% date",
+      cum_prop_adult >= 0.50 ~ ">50% date",
+      cum_prop_adult >= 0.01 ~ ">1% date",
+      TRUE                   ~ "<1% date"
     ),
     d.m = paste(day, "-", month.name[month], sep = "")
   ) |>
@@ -756,3 +756,103 @@ ggplot(plot_df, aes(as.Date(julian, origin = "2020-12-31"), cum_prop_adult,
     legend.title     = element_text(face = "bold"),
     legend.position  = "right"
   )
+#####################Rigid plot with 50% date on it
+#used for 2026 Post season
+# 1. Filter to the target year first, then compute the exact 50% cumulative day
+Newcurrent_year_esc <- current_year_esc %>%
+  filter(year == max(year)) %>%
+  group_by(system) %>%
+  arrange(date) %>%
+  mutate(
+    is_50_day = cum_prop_adult >= 0.50 & lag(cum_prop_adult, default = 0) < 0.50
+  ) %>%
+  ungroup()
+
+# 2. Calculate max height and y-axis factor levels (matching `limits = rev`)
+max_h <- max(Newcurrent_year_esc$prop_ttl_adult, na.rm = TRUE)
+rev_levels <- rev(levels(factor(Newcurrent_year_esc$system)))
+
+# 3. Extract the 50% milestone rows and compute exact segment coordinates
+label50 <- Newcurrent_year_esc %>%
+  filter(is_50_day) %>%
+  mutate(
+    x_date     = as.Date(d.m, format = "%d-%b"),
+    date_label = trimws(format(x_date, "%e-%B")),
+    y_base     = as.numeric(factor(system, levels = rev_levels)),
+    y_top      = y_base + (prop_ttl_adult / max_h) * 0.95
+  )
+
+# 4. Build the clean ridgeline plot with exact 50% vertical markers and date boxes
+RigidplotEsc <- Newcurrent_year_esc %>%
+  ggplot(
+    aes(
+      x      = as.Date(d.m, format = "%d-%b"),
+      y      = factor(system),
+      height = prop_ttl_adult / max_h,
+      group  = factor(system)
+    )
+  ) +
+  geom_ridgeline(
+    fill      = "grey75",
+    color     = "black",
+    scale     = 0.95,
+    linewidth = 0.25
+  ) +
+  geom_segment(
+    data = label50,
+    aes(
+      x     = x_date,
+      xend  = x_date,
+      y     = y_base,
+      yend  = y_top,
+      color = "50% Cumulative Escapement Date"
+    ),
+    linewidth   = 1.1,
+    inherit.aes = FALSE
+  ) +
+  geom_label(
+    data = label50,
+    aes(
+      x     = x_date,
+      y     = factor(system),
+      label = date_label
+    ),
+    vjust       = 1.35,
+    size        = 3.5,
+    fontface    = "bold",
+    color       = "#D55E00",
+    fill        = "white",
+    label.size  = 0.25,
+    inherit.aes = FALSE
+  ) +
+  scale_color_manual(
+    name   = NULL,
+    values = c("50% Cumulative Escapement Date" = "#D55E00")
+  ) +
+  scale_y_discrete(
+    limits = rev,
+    expand = expansion(mult = c(0.20, 0.15))
+  ) +
+  ggtitle("Sockeye escapement timing at the counters - 2026") +
+  labs(y = NULL, x = NULL) +
+  scale_x_date(
+    date_labels = "%b",
+    breaks      = "1 month",
+    limits      = as.Date(c("5-Apr", "20-Nov"), format = "%d-%b"),
+    expand      = c(0, 0)
+  ) +
+  theme_ridges() +
+  theme(
+    legend.position       = "None"
+  )
+
+# Save the plot
+ggsave(
+  filename = "SockeyeEscRigidplot.png", 
+  plot     = RigidplotEsc,
+  width    = 8,       # inches (wide enough so Apr–Nov dates don't crowd)
+  height   = 5,       # inches (balanced vertical height for two ridges)
+  units    = "in",
+  dpi      = 300,     # publication/report print quality
+  bg       = "white"  # prevents transparent background issues in Word/PowerPoint
+)
