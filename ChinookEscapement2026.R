@@ -1,333 +1,296 @@
 library(readxl)
 library(tidyverse)
-library(geomtextpath)
+library(ggrepel)   # direct year labels on the spaghetti plot (geomtextpath was loaded but never used)
 
-# ---- Shared helpers -------------------------------------------------------
+# ---- Settings ---------------------------------------------------------------
 
-ANCHOR_YEAR <- 2001  # fixed non-leap anchor used across all timing plots
-curr_year   <- 2026  # current management year; drives file paths and plot calls below
+curr_year    <- 2026   # current management year; drives file paths and labels
+n_hist_years <- 10     # prior years used in every plot (was 10 / 10 / 9)
+esc_target   <- 34000  # in-season escapement target
 
-# Leap-year-safe day-of-year: anchors every date to a fixed non-leap year
-# before extracting day-of-year, so Aug-Oct dates align consistently across
-# leap and non-leap calendar years. Replaces format(date, "%j").
-safe_julian <- function(date) {
-  lubridate::yday(as.Date(paste0(ANCHOR_YEAR, "-", format(date, "%m-%d"))))
+ANCHOR_YEAR <- 2001    # fixed non-leap year every date is mapped onto for plotting
+PLOT_WINDOW <- as.Date(paste0(ANCHOR_YEAR, c("-08-01", "-11-05")))
+DATE_BREAKS <- seq(PLOT_WINDOW[1], PLOT_WINDOW[2], by = "2 weeks")  # same ticks on every plot
+
+# Shared palette
+hist_colour   <- "#2C5F7C"  # muted steel blue: historic mean / band / recent years
+hist_light    <- "#C3D0D9"  # oldest historic year on the spaghetti plot
+curr_colour   <- "#EE6C29"  # current year, every plot
+target_colour <- "#2E8B57"  # target line
+
+# ---- Shared helpers ---------------------------------------------------------
+
+# Map any date onto ANCHOR_YEAR so Aug-Nov dates line up across leap and
+# non-leap years. Replaces safe_julian() + julian_to_date(): the plots only
+# ever needed the anchored date, never the julian number itself.
+anchor_date <- function(date) make_date(ANCHOR_YEAR, month(date), mday(date))
+
+# Read one escapement sheet into long format with cumulative counts.
+# Blank cells are treated as 0 fish up to the last day with any entry for
+# that year/species, and as "not counted yet" (NA) after it. That stops the
+# current-year line, and its callout, from running flat to the end of a
+# sheet that already has future dates in it.
+read_esc <- function(path, sheet, species_cols) {
+  esc <- read_xlsx(path, sheet = sheet, na = "") |>
+    select(1:9) |>
+    pivot_longer({{ species_cols }}, names_to = "species", values_to = "count") |>
+    rename_with(tolower) |>
+    filter(!is.na(date)) |>              # drops subtotal rows, if present
+    mutate(date = as.Date(date))
+  if (!"year" %in% names(esc)) esc$year <- year(esc$date)  # live sheet has no Year column
+  
+  esc |>
+    group_by(year, species) |>
+    arrange(date, .by_group = TRUE) |>
+    mutate(
+      counted   = rev(cumany(rev(!is.na(count)))),
+      cum_count = if_else(counted, cumsum(replace_na(count, 0)), NA_real_),
+      ann_ttl   = sum(count, na.rm = TRUE),
+      cum_prop  = cum_count / ann_ttl,
+      plot_date = anchor_date(date)
+    ) |>
+    ungroup() |>
+    select(-counted)
 }
 
-# Converts a leap-safe julian day back to a plottable Date, anchored to the
-# same fixed year used by safe_julian(). Shared by every timing plot so the
-# x-axis is always built the same way.
-julian_to_date <- function(j) as.Date(j - 1, origin = paste0(ANCHOR_YEAR, "-01-01"))
-
-# Bounded [0,1] smoother used for the l95/u95 ribbon and the historic mean
-# label line. Not a real binomial model (l95/u95 are proportions, not
-# Bernoulli outcomes) -- used purely as a logit-constrained smoothing curve.
-# The "non-integer #successes" warning this throws is expected and harmless
-# for that reason; it's a signal you're using glm() outside its intended
-# purpose, not a computation error.
-logit_smooth <- function(y, x) {
-  binomial()$linkinv(predict(glm(y ~ x, family = binomial)))
+# Historic Chinook: one row per year per day up to the window end, so every
+# day's mean/quantiles use the same set of years and every spaghetti line
+# reaches the window edge. Cumulative values are 0 before a year's first
+# record and hold at their last value after it.
+hist_chinook <- function(hist_data, curr_year, n_years) {
+  hist <- hist_data |>
+    filter(species == "Chinook", between(year, curr_year - n_years, curr_year - 1))
+  
+  zero_years <- unique(hist$year[hist$ann_ttl == 0])
+  if (length(zero_years) > 0) {
+    warning("Excluding year(s) with zero total Chinook: ", paste(zero_years, collapse = ", "))
+  }
+  
+  hist |>
+    filter(ann_ttl > 0, plot_date <= PLOT_WINDOW[2]) |>
+    select(year, plot_date, cum_count, cum_prop) |>
+    complete(year, plot_date = seq(min(plot_date), PLOT_WINDOW[2], by = "day")) |>
+    group_by(year) |>
+    arrange(plot_date, .by_group = TRUE) |>
+    fill(cum_count, cum_prop, .direction = "down") |>
+    mutate(across(c(cum_count, cum_prop), \(x) replace_na(x, 0))) |>
+    ungroup()
 }
 
-# Shared palette across all Stamp Chinook timing plots
-hist_colour_dark <- "#2C5F7C"  # muted steel blue (historic mean line / ribbon)
-curr_colour      <- "#EE6c29"  # current-year highlight, used across all timing/spaghetti plots
-target_colour    <- "#2E8B57"  # (target line)
+curr_chinook <- function(current_data) {
+  out <- filter(current_data, species == "Chinook", !is.na(cum_count))
+  if (nrow(out) == 0) {
+    warning("No Chinook rows in current_data -- check unique(current_data$species).")
+  }
+  out
+}
 
-# Distinct, non-green palette for historic spaghetti-plot years. Green is
-# deliberately excluded here so curr_colour above always reads unambiguously
-# as "this year" against any number of historic lines.
-hist_year_palette <- c(
-  "#2E8B57", "#566238", "#FFD95D", "#6D8EC5", "#9C755F",
-  "#162660", "#CF8852", "#6F6134", "#C9C769", "#F0C845"
-)
+# Dot + filled label at a point; used for every callout
+callout <- function(data, y, label, fill, hjust = 0, vjust = 0.5, nudge_x = 2) {
+  list(
+    geom_point(data = data, aes(plot_date, {{ y }}), colour = fill, size = 3),
+    geom_label(
+      data = data, aes(plot_date, {{ y }}, label = {{ label }}),
+      colour = "white", fill = fill, fontface = "bold", size = 3,
+      label.padding = unit(0.15, "lines"), label.r = unit(0.1, "lines"),
+      hjust = hjust, vjust = vjust, nudge_x = nudge_x
+    )
+  )
+}
 
-# Shared theme so every Stamp Chinook plot looks consistent
+# Callout for the current year's latest count. Label goes right of the dot,
+# or left of it in the last 3 weeks of the window so it stays off the axis.
+curr_callout <- function(latest, label, vjust = 0) {
+  near_end <- nrow(latest) > 0 && latest$plot_date > PLOT_WINDOW[2] - 21
+  callout(latest, cum_count, {{ label }}, curr_colour, vjust = vjust,
+          hjust = if (near_end) 1 else 0, nudge_x = if (near_end) -2 else 2)
+}
+
+# Legend inside the top-left of the panel (numeric legend.position is
+# deprecated from ggplot2 3.5.0)
+legend_top_left <- function() {
+  if (packageVersion("ggplot2") >= "3.5.0") {
+    theme(legend.position = "inside", legend.position.inside = c(0.02, 0.98),
+          legend.justification = c(0, 1))
+  } else {
+    theme(legend.position = c(0.02, 0.98), legend.justification = c(0, 1))
+  }
+}
+
 cn_theme <- function() {
   theme_minimal(base_size = 12) +
     theme(
-      panel.grid.minor = element_blank(),
+      panel.grid.minor   = element_blank(),
       panel.grid.major.x = element_blank(),
       panel.grid.major.y = element_line(colour = "grey90", linewidth = 0.3),
-      axis.line.y = element_line(colour = "black", linewidth = 0.4),
-      axis.line.x = element_line(colour = "black", linewidth = 0.4),
-      axis.ticks.x = element_line(colour = "black", linewidth = 0.4),
-      axis.ticks.length.x = unit(0.15, "cm")
+      axis.line          = element_line(colour = "black", linewidth = 0.4),
+      axis.ticks.x       = element_line(colour = "black", linewidth = 0.4),
+      axis.ticks.length.x = unit(0.15, "cm"),
+      axis.title.y.right = element_text(margin = margin(l = 0.5, unit = "lines")),
+      axis.title.y.left  = element_text(margin = margin(r = 0.5, unit = "lines")),
+      legend.background  = element_rect(fill = alpha("white", 0.7), colour = NA),
+      legend.key         = element_rect(fill = NA, colour = NA),
+      legend.spacing.y   = unit(0, "lines"),
+      legend.margin      = margin(0, 4, 0, 4)
     )
 }
 
-# ---- Data loading -----------------------------------------------------
+# ---- Data loading -----------------------------------------------------------
 
-SomassEsc <- read_xlsx(
-  "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/Sockeye/SOMASS/Data/ESCAPEMENT_PROGRAM/SomassEsc.xlsx",
-  sheet = "Stamp CN & CO",
-  na = ""
-) |>
-  select(1:9) |>
-  pivot_longer(cols = Coho:ChinookJack, names_to = "species", values_to = "count") |>
-  rename_with(tolower) |>
-  mutate(
-    date = as.Date(date),
-    # Historic (complete) years: missing daily counts mean "no fish that
-    # day", i.e. 0 -- not unknown. Leaves the current year's NAs alone
-    # (handled separately via CurrentYearEsc / the live file).
-    count = if_else(year < max(year) & is.na(count), 0, count)
-  ) |>
-  group_by(year, species) |>
-  arrange(date, .by_group = TRUE) |>
-  mutate(
-    cum_count = cumsum(count),
-    ann_ttl = sum(count, na.rm = TRUE),
-    cum_prop = cum_count / ann_ttl,
-    julian = safe_julian(date)
-  ) |>
-  ungroup()
+data_dir <- "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/Sockeye/SOMASS/"
 
-CurrentYearEsc <- read_xlsx(
-  "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/SOCKEYE/SOMASS/SOCKEYE_MGMT/2026_MGT/Daily Totals by Age 2026.xlsx",
-  sheet = "Stamp CN&CO",
-  na = ""
-) |>
-  select(1:9) |>
-  pivot_longer(cols = 2:9, names_to = "species", values_to = "count") |>
-  rename_with(tolower) |>
-  filter(!is.na(date)) |>  # drop subtotal rows at end of sheet, if present
-  mutate(date = as.Date(date)) |>
-  group_by(species) |>
-  arrange(date, .by_group = TRUE) |>
-  mutate(
-    # Blank/not-yet-entered days in the live file must read as 0, not NA --
-    # cumsum() propagates NA forward, which would otherwise wipe out every
-    # later day's cumulative count (see the same pattern in the Coho scripts).
-    cum_count = cumsum(replace_na(count, 0)),
-    ann_ttl = sum(count, na.rm = TRUE),
-    cum_prop = cum_count / ann_ttl,
-    julian = safe_julian(date)
-  ) |>
-  ungroup()
+SomassEsc <- read_esc(
+  paste0(data_dir, "Data/ESCAPEMENT_PROGRAM/SomassEsc.xlsx"),
+  sheet = "Stamp CN & CO", species_cols = Coho:ChinookJack
+)
 
-# ---- Timing (proportion) plot ------------------------------------------
+CurrentYearEsc <- read_esc(
+  paste0(data_dir, "SOCKEYE_MGMT/", curr_year, "_MGT/Daily Totals by Age ", curr_year, ".xlsx"),
+  sheet = "Stamp CN&CO", species_cols = 2:9
+)
 
-#' Build Stamp River Chinook escapement timing plot
+# ---- Timing / count plot ----------------------------------------------------
+
+#' Stamp River Chinook cumulative escapement vs historic
 #'
-#' @param hist_data    Historic data frame (e.g. SomassEsc). Columns needed:
-#'                     species, year, julian, cum_prop.
-#' @param current_data Current-season data frame (e.g. CurrentYearEsc),
-#'                      updated weekly from the live file. Columns needed:
-#'                      species, julian, cum_count.
-#' @param curr_year    Current management year (integer), used for labels.
-#' @param hist_years   Number of prior years in the historic mean/ribbon
-#'                      (default 20).
-#' @param esc_target   Numeric escapement target for curr_year.
-build_cn_timing_plot <- function(hist_data, current_data, curr_year,
-                                 hist_years = 20, esc_target) {
+#' esc_target = NULL (post-season): historic mean and 5th-95th percentile of
+#'   daily cumulative COUNTS, current year on the same scale.
+#' esc_target = number (in-season): historic run TIMING (each year's
+#'   cumulative proportion of its own total) multiplied by the target, i.e.
+#'   where the count would be on each date with that year's timing and a run
+#'   that finishes exactly on target. Adds the target line and a left axis in
+#'   % of target. By construction the mean and band converge on 100% of target
+#'   at the end of the window, so the band narrows to zero width there.
+build_cn_count_plot <- function(hist_data, current_data, curr_year,
+                                n_years = n_hist_years, esc_target = NULL) {
+  use_target <- !is.null(esc_target)
   
-  hist_input <- hist_data |>
-    filter(species == "Chinook",
-           between(year, curr_year - hist_years, curr_year - 1))
+  hist_summary <- hist_chinook(hist_data, curr_year, n_years) |>
+    mutate(value = if (use_target) cum_prop * esc_target else cum_count) |>
+    group_by(plot_date) |>
+    summarise(mean = mean(value), q05 = quantile(value, 0.05),
+              q95 = quantile(value, 0.95), .groups = "drop") |>
+    filter(plot_date >= PLOT_WINDOW[1])
   
-  zero_total_years <- hist_input |>
-    filter(!is.finite(cum_prop)) |>
-    distinct(year) |>
-    pull(year)
+  current <- curr_chinook(current_data)
+  latest  <- slice_max(current, plot_date, n = 1, with_ties = FALSE)
+  # In-season: historic mean on the same date as the latest count (like-for-like).
+  # Post-season: historic mean at the end of its line, i.e. the mean final total.
+  hist_pt <- if (use_target) filter(hist_summary, plot_date %in% latest$plot_date)
+  else slice_max(hist_summary, plot_date, n = 1)
   
-  if (length(zero_total_years) > 0) {
-    warning(
-      "Excluding year(s) with zero total Chinook count from historic average: ",
-      paste(zero_total_years, collapse = ", ")
-    )
+  # Callout text: count, plus % of target in-season
+  fmt <- function(x) {
+    if (use_target) paste0(scales::comma(round(x)), " (", scales::percent(x / esc_target), ")")
+    else scales::comma(round(x))
+  }
+  # In-season: higher value's label above its point, lower one below, so they don't collide
+  curr_on_top <- nrow(hist_pt) == 0 || latest$cum_count >= hist_pt$mean
+  hist_callout <- if (use_target) {
+    # Same date as the latest count, so the label goes directly under (or over)
+    # the dot rather than to the right, where it would sit on the rest of the line
+    callout(hist_pt, mean, fmt(mean), hist_colour, hjust = 0.5, nudge_x = 0,
+            vjust = if (curr_on_top) 1.8 else -0.8)
+  } else {
+    # End of the line: label sits just above the point, right-aligned to it
+    callout(hist_pt, mean, fmt(mean), hist_colour, hjust = 1, vjust = -0.9, nudge_x = 0)
   }
   
-  hist_summary <- hist_input |>
-    filter(is.finite(cum_prop)) |>
-    group_by(julian) |>
-    summarise(
-      mean = mean(cum_prop),
-      l95  = quantile(cum_prop, 0.05),
-      u95  = quantile(cum_prop, 0.95),
-      .groups = "drop"
-    ) |>
-    mutate(
-      date = julian_to_date(julian),
-      l95_smooth = logit_smooth(l95, julian),
-      u95_smooth = logit_smooth(u95, julian)
-    )
-  
-  current_input <- current_data |>
-    filter(species == "Chinook") |>
-    mutate(date = julian_to_date(julian), prop_of_target = cum_count / esc_target)
-  
-  if (nrow(current_input) == 0) {
-    warning(
-      "current_data has 0 rows after filtering species == 'Chinook' -- ",
-      "check the actual species values with unique(current_data$species)."
-    )
-  }
-  
-  # Most recent day with a real (non-NA) cumulative count, for the
-  # current-count callout at the end of the orange line.
-  latest_point <- current_input |>
-    filter(!is.na(cum_count)) |>
-    slice_max(date, n = 1, with_ties = FALSE)
+  hist_span  <- paste0(curr_year - n_years, "\u2013", curr_year - 1)
+  curr_lab   <- as.character(curr_year)
+  mean_lab   <- paste0("Historic mean", if (use_target) " timing", " (", hist_span, ")",
+                       if (use_target) ", scaled to target")
+  band_lab   <- paste0("Historic 5th\u201395th percentile", if (use_target) " timing")
+  target_lab <- if (use_target) paste0("Escapement target (", scales::comma(esc_target), ")")
   
   ggplot() +
-    geom_ribbon(
-      data = hist_summary,
-      aes(date, ymin = l95_smooth, ymax = u95_smooth),
-      fill = hist_colour_dark, alpha = 0.15
-    ) +
-    geom_textsmooth(
-      data = hist_summary,
-      aes(date, mean),
-      label = paste("Historic", curr_year - hist_years, "\u2013", curr_year - 1),
-      linewidth = 1, hjust = 0.6, colour = hist_colour_dark,
-      method = "glm", method.args = list(family = binomial())
-    ) +
-    geom_hline(
-      yintercept = 1, linetype = "dashed", colour = target_colour, linewidth = 0.5
-    ) +
-    geom_line(
-      data = current_input,
-      aes(date, prop_of_target),
-      colour = curr_colour, linewidth = 1.6
-    ) +
-    geom_point(
-      data = latest_point,
-      aes(date, prop_of_target),
-      colour = curr_colour, size = 3
-    ) +
-    geom_label(
-      data = latest_point,
-      aes(date, prop_of_target, label = scales::comma(cum_count)),
-      colour = "white", fill = curr_colour, fontface = "bold",
-      size = 3, label.padding = unit(0.15, "lines"), label.r = unit(0.1, "lines"),
-      hjust = 0, nudge_x = 2
+    geom_ribbon(data = hist_summary, aes(plot_date, ymin = q05, ymax = q95, fill = band_lab),
+                alpha = 0.15) +
+    (if (use_target) geom_hline(aes(yintercept = esc_target, linetype = target_lab),
+                                colour = target_colour, linewidth = 0.5)) +
+    geom_line(data = hist_summary, aes(plot_date, mean, colour = mean_lab), linewidth = 1) +
+    geom_line(data = current, aes(plot_date, cum_count, colour = curr_lab), linewidth = 1.6) +
+    curr_callout(latest, fmt(cum_count), vjust = if (curr_on_top) -0.4 else 1.4) +
+    hist_callout +
+    scale_colour_manual(values = setNames(c(curr_colour, hist_colour), c(curr_lab, mean_lab)),
+                        breaks = c(curr_lab, mean_lab), name = NULL) +
+    scale_fill_manual(values = setNames(hist_colour, band_lab), name = NULL) +
+    (if (use_target) scale_linetype_manual(values = setNames("dashed", target_lab), name = NULL)) +
+    guides(
+      colour   = guide_legend(order = 1, override.aes = list(linewidth = c(1.6, 1))),
+      fill     = guide_legend(order = 2),
+      linetype = guide_legend(order = 3)
     ) +
     scale_y_continuous(
-      labels = scales::percent,
-      name = "Proportion of total escapement (historic) / target (current year)",
-      breaks = seq(0, 1, 0.25),
-      sec.axis = sec_axis(
-        transform = ~ . * esc_target,
-        breaks = seq(0, 1, 0.25) * esc_target,
-        labels = scales::comma,
-        name = paste(curr_year, "cumulative escapement")
-      ),
-      expand = expansion(mult = c(0, 0.05))
-    ) + 
-    scale_x_date(breaks = "2 weeks", date_labels = "%d %b") +
-    coord_cartesian(
-      xlim = as.Date(c(paste0(ANCHOR_YEAR, "-08-01"), paste0(ANCHOR_YEAR, "-10-27")))
-    ) +
-    labs(x = NULL) +
-    cn_theme() +
-    theme(legend.position = "none")
-}
-
-# ---- Spaghetti (cumulative count) plot ----------------------------------
-
-#' Build Stamp River Chinook cumulative-count spaghetti plot
-#'
-#' Shows each historic year as an individual line (faded by recency, colour
-#' legend) plus the current year highlighted, on raw cumulative count
-#' rather than proportion -- complements build_cn_timing_plot().
-#'
-#' @param hist_data    Historic data frame (e.g. SomassEsc). Columns needed:
-#'                     species, year, julian, cum_count.
-#' @param current_data Current-season data frame (e.g. CurrentYearEsc).
-#'                      Columns needed: species, julian, cum_count.
-#' @param curr_year    Current management year (integer), used for label.
-#' @param hist_years   Number of prior years shown as individual lines
-#'                      (default 10).
-build_cn_spaghetti_plot <- function(hist_data, current_data, curr_year,
-                                    hist_years = 10) {
-  
-  hist_input <- hist_data |>
-    filter(species == "Chinook",
-           between(year, curr_year - hist_years, curr_year - 1)) |>
-    mutate(date = julian_to_date(julian))
-  
-  current_input <- current_data |>
-    filter(species == "Chinook") |>
-    mutate(date = julian_to_date(julian))
-  
-  if (nrow(current_input) == 0) {
-    warning(
-      "current_data has 0 rows after filtering species == 'Chinook' -- ",
-      "check the actual species values with unique(current_data$species)."
-    )
-  }
-  
-  hist_years_present <- sort(unique(hist_input$year))
-  n_years <- length(hist_years_present)
-  
-  hist_colours <- colorRampPalette(hist_year_palette)(n_years)
-  names(hist_colours) <- hist_years_present
-  
-  all_colours <- c(hist_colours, setNames(curr_colour, curr_year))
-  legend_order <- as.character(c(hist_years_present, curr_year))
-  
-  plot_input <- bind_rows(
-    hist_input |> mutate(year = as.character(year)),
-    current_input |> mutate(year = as.character(curr_year))
-  ) |>
-    mutate(is_current = year == as.character(curr_year))
-  
-  ggplot(plot_input, aes(date, cum_count, colour = year, group = year)) +
-    geom_line(aes(linewidth = is_current, alpha = is_current)) +
-    scale_colour_manual(values = all_colours, breaks = legend_order, name = "Year") +
-    scale_linewidth_manual(values = c(`TRUE` = 1.6, `FALSE` = 0.8), guide = "none") +
-    scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.75), guide = "none") +
-    scale_x_date(
-      breaks = "2 weeks", date_labels = "%d %b",
-      expand = expansion(mult = 0)
-    ) +
-    coord_cartesian(
-      xlim = as.Date(c(paste0(ANCHOR_YEAR, "-08-01"), paste0(ANCHOR_YEAR, "-10-30")))
-    ) +
-    scale_y_continuous(
+      name = "Cumulative Stamp Falls Chinook escapement",
       position = "right",
       labels = scales::comma,
-      expand = expansion(mult = c(0, 0.05))
+      # In-season: count breaks at 25% steps of target so both axes share the gridlines
+      breaks = if (use_target) seq(0, 5, 0.25) * esc_target else waiver(),
+      expand = expansion(mult = c(0, 0.05)),
+      sec.axis = if (use_target) {
+        sec_axis(~ . / esc_target, breaks = seq(0, 5, 0.25),
+                 labels = scales::percent, name = "% of escapement target")
+      } else waiver()
     ) +
-    labs(x = NULL, y = "Cumulative Stamp Falls Chinook escapement") +
+    (if (use_target) expand_limits(y = esc_target * 1.3)) +  # headroom so legend clears target line
+    scale_x_date(breaks = DATE_BREAKS, date_labels = "%d %b") +
+    coord_cartesian(xlim = PLOT_WINDOW) +
+    labs(x = NULL) +
     cn_theme() +
-    theme(
-      axis.title.y.right = element_text(margin = margin(l = 0.5, unit = "lines")),
-      legend.position = c(0.02, 0.98),
-      legend.justification = c(0, 1),
-      legend.background = element_rect(fill = alpha("white", 0.7), colour = NA),
-      legend.key = element_rect(fill = NA)
-    ) +
-    guides(colour = guide_legend(override.aes = list(linewidth = 2.5)))
+    legend_top_left()
 }
 
-# ---- Running the functions and generating plots -----------
+# ---- Spaghetti plot ---------------------------------------------------------
 
-ChinookTimingPlot <- build_cn_timing_plot(
-  hist_data    = SomassEsc,
-  current_data = CurrentYearEsc,
-  curr_year    = curr_year,
-  hist_years   = 10,
-  esc_target   = 34000
-)
+#' Stamp River Chinook cumulative count, one line per year
+#'
+#' Historic years are thin lines shaded from light (oldest) to steel blue
+#' (most recent) and labelled directly at the right edge, so no legend is
+#' needed. The current year is the thick orange line with its latest count.
+build_cn_spaghetti_plot <- function(hist_data, current_data, curr_year,
+                                    n_years = n_hist_years) {
+  hist    <- hist_chinook(hist_data, curr_year, n_years) |>
+    filter(plot_date >= PLOT_WINDOW[1])
+  ends    <- filter(hist, plot_date == PLOT_WINDOW[2])
+  current <- curr_chinook(current_data)
+  latest  <- slice_max(current, plot_date, n = 1, with_ties = FALSE)
+  
+  ggplot(hist, aes(plot_date, cum_count)) +
+    geom_line(aes(group = year, colour = year), linewidth = 0.6) +
+    geom_text_repel(
+      data = ends, aes(label = year, colour = year),
+      size = 3, hjust = 0, nudge_x = 1.5, direction = "y",
+      xlim = c(PLOT_WINDOW[2] + 1, NA), segment.colour = "grey75",
+      segment.size = 0.3, min.segment.length = 0, box.padding = 0.1, seed = 1
+    ) +
+    geom_line(data = current, colour = curr_colour, linewidth = 1.6) +
+    curr_callout(latest, paste0(curr_year, ": ", scales::comma(cum_count)), vjust = -0.4) +
+    scale_colour_gradient(low = hist_light, high = hist_colour, guide = "none") +
+    scale_x_date(breaks = DATE_BREAKS, date_labels = "%d %b",
+                 expand = expansion(add = c(2, 9))) +   # room for the year labels
+    scale_y_continuous(
+      name = "Cumulative Stamp Falls Chinook escapement",
+      position = "right", labels = scales::comma,
+      expand = expansion(mult = c(0, 0.05))
+    ) +
+    coord_cartesian(xlim = PLOT_WINDOW, clip = "off") +
+    labs(x = NULL) +
+    cn_theme()
+}
 
-ChinookSpagettiPlot <- build_cn_spaghetti_plot(
-  hist_data    = SomassEsc,
-  current_data = CurrentYearEsc,
-  curr_year    = curr_year,
-  hist_years   = 9
-)
+# ---- Build and save ---------------------------------------------------------
+
+ChinookTimingPlot <- build_cn_count_plot(SomassEsc, CurrentYearEsc, curr_year,
+                                         esc_target = esc_target)
+ChinookTimingPlot_noTarget <- build_cn_count_plot(SomassEsc, CurrentYearEsc, curr_year)
+ChinookSpaghettiPlot <- build_cn_spaghetti_plot(SomassEsc, CurrentYearEsc, curr_year)
 
 ggsave(
-  plot = ChinookSpagettiPlot,
+  plot = ChinookSpaghettiPlot,
   filename = paste0(
     "//dcbcpbsna01a.ENT.dfo-mpo.ca/PBS_SA_DFS$/SCD_Stad/WCVI/CHINOOK/CHINOOK_MGT/",
-    curr_year,
-    "/A23/Escapement plot/",
-    "Fig4_", curr_year, "_ChinookSpagettiPlot.png"
+    curr_year, "/A23/Escapement plot/", curr_year, "_ChinookSpaghettiPlot.png"
   ),
-  height = 5.5,
-  width = 9,
-  units = "in"
+  height = 5.5, width = 9, units = "in"
 )
